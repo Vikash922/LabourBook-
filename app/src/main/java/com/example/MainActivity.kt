@@ -1,0 +1,101 @@
+package com.example
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import com.example.ui.components.LaborbookBottomNav
+import com.example.ui.screens.AddLaborScreen
+import com.example.ui.screens.BatchPdfHubScreen
+import com.example.ui.screens.CashBookReportScreen
+import com.example.ui.screens.CashBookScreen
+import com.example.ui.screens.LaborDetailScreen
+import com.example.ui.screens.LaborHomeScreen
+import com.example.ui.screens.LaborReportScreen
+import com.example.ui.screens.LoginScreen
+import com.example.ui.screens.SettingsScreen
+import com.example.ui.theme.LaborbookTheme
+import com.example.ui.viewmodel.LaborViewModel
+import com.example.ui.viewmodel.Screen
+
+class MainActivity : ComponentActivity() {
+    private val viewModel: LaborViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            LaborbookTheme {
+                LaborbookApp(viewModel = viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+fun LaborbookApp(viewModel: LaborViewModel) {
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val selectedTab by viewModel.selectedTabIndex.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
+
+    val isRootTabScreen = currentScreen is Screen.LaborHome ||
+            currentScreen is Screen.CashBook ||
+            currentScreen is Screen.Settings
+
+    BackHandler(enabled = !isRootTabScreen) {
+        when (currentScreen) {
+            is Screen.AddLabor -> viewModel.navigateTo(Screen.LaborHome)
+            is Screen.LaborDetail -> viewModel.navigateTo(Screen.LaborHome)
+            is Screen.LaborReport -> {
+                val workerId = (currentScreen as Screen.LaborReport).workerId
+                viewModel.navigateTo(Screen.LaborDetail(workerId))
+            }
+            is Screen.CashBookReport -> viewModel.navigateTo(Screen.CashBook)
+            is Screen.BatchPdfHub -> viewModel.navigateTo(Screen.Settings)
+            else -> {}
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            if (isRootTabScreen) {
+                LaborbookBottomNav(
+                    selectedTabIndex = selectedTab,
+                    onTabSelected = { index ->
+                        viewModel.selectTab(index)
+                    },
+                    language = userProfile.language
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            when (val screen = currentScreen) {
+                is Screen.Login -> LoginScreen(viewModel = viewModel)
+                is Screen.LaborHome -> LaborHomeScreen(viewModel = viewModel)
+                is Screen.AddLabor -> AddLaborScreen(viewModel = viewModel)
+                is Screen.LaborDetail -> LaborDetailScreen(workerId = screen.workerId, viewModel = viewModel)
+                is Screen.LaborReport -> LaborReportScreen(workerId = screen.workerId, viewModel = viewModel)
+                is Screen.CashBook -> CashBookScreen(viewModel = viewModel)
+                is Screen.CashBookReport -> CashBookReportScreen(viewModel = viewModel)
+                is Screen.Settings -> SettingsScreen(viewModel = viewModel)
+                is Screen.BatchPdfHub -> BatchPdfHubScreen(viewModel = viewModel)
+            }
+        }
+    }
+}
