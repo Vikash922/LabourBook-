@@ -91,15 +91,15 @@ fun LaborDetailScreen(
         return
     }
 
-    val (currentYear, currentMonthNum) = LaborCalendarHelper.parseYearMonth(selectedMonth)
-    val daysInCurrentMonth = LaborCalendarHelper.getDaysInMonth(currentYear, currentMonthNum)
+    val (currentYear, currentMonthNum) = remember(selectedMonth) { LaborCalendarHelper.parseYearMonth(selectedMonth) }
+    val daysInCurrentMonth = remember(currentYear, currentMonthNum) { LaborCalendarHelper.getDaysInMonth(currentYear, currentMonthNum) }
     val context = LocalContext.current
 
-    val monthPresent = worker.getTotalPresent(selectedMonth)
-    val monthAbsent = worker.getTotalAbsent(selectedMonth)
-    val monthOvertime = worker.getTotalOvertimeHours(selectedMonth)
-    val monthAdvance = worker.getTotalAdvance(selectedMonth)
-    val monthEstimatedEarnings = worker.getEstimatedEarnings(selectedMonth)
+    val monthPresent = remember(worker, selectedMonth) { worker.getTotalPresent(selectedMonth) }
+    val monthAbsent = remember(worker, selectedMonth) { worker.getTotalAbsent(selectedMonth) }
+    val monthOvertime = remember(worker, selectedMonth) { worker.getTotalOvertimeHours(selectedMonth) }
+    val monthAdvance = remember(worker, selectedMonth) { worker.getTotalAdvance(selectedMonth) }
+    val monthEstimatedEarnings = remember(worker, selectedMonth) { worker.getEstimatedEarnings(selectedMonth) }
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showEditWorkerDialog by remember { mutableStateOf(false) }

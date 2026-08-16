@@ -75,6 +75,7 @@ fun LaborHomeScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
     val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
+    val lastDeletedWorker by viewModel.lastDeletedWorker.collectAsState()
     val lang = userProfile.language
 
     Scaffold(
@@ -216,6 +217,50 @@ fun LaborHomeScreen(
                         }
                     }
                 }
+
+                // Accidentally Deleted Worker Undo Recovery Banner
+                if (lastDeletedWorker != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFEF3C7),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Deleted ${lastDeletedWorker?.name ?: "laborer"}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF92400E)
+                                )
+                                Text(
+                                    text = "Safety snapshot saved. Tap UNDO to restore.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
+                            androidx.compose.material3.Button(
+                                onClick = { viewModel.undoDeleteWorker() },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text("UNDO", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                            }
+                        }
+                    }
+                }
             }
 
             // Labor Worker Cards List
@@ -223,6 +268,13 @@ fun LaborHomeScreen(
                 item {
                     EmptyLaborStateCard(
                         onAddLaborClick = { viewModel.navigateTo(Screen.AddLabor) },
+                        onRestoreClick = {
+                            viewModel.restoreFromSafetyBackup { success, msg ->
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        lastDeletedWorkerName = lastDeletedWorker?.name,
+                        onUndoClick = { viewModel.undoDeleteWorker() },
                         lang = lang
                     )
                 }
@@ -243,6 +295,9 @@ fun LaborHomeScreen(
 @Composable
 fun EmptyLaborStateCard(
     onAddLaborClick: () -> Unit,
+    onRestoreClick: () -> Unit,
+    lastDeletedWorkerName: String?,
+    onUndoClick: () -> Unit,
     lang: String
 ) {
     Card(
@@ -298,24 +353,57 @@ fun EmptyLaborStateCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            androidx.compose.material3.Button(
-                onClick = onAddLaborClick,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = LaborBlue),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.testTag("empty_state_add_labor_btn")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.PersonAdd,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                if (lastDeletedWorkerName != null) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onUndoClick,
+                        shape = RoundedCornerShape(20.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B)),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD97706))
+                    ) {
+                        Text(
+                            text = "Undo Delete ($lastDeletedWorkerName)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                androidx.compose.material3.Button(
+                    onClick = onAddLaborClick,
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = LaborBlue),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.testTag("empty_state_add_labor_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = AppStrings.get("add_labor", lang),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            androidx.compose.material3.TextButton(
+                onClick = onRestoreClick
+            ) {
                 Text(
-                    text = AppStrings.get("add_labor", lang),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color.White
+                    text = "↺ Restore From Google Drive / Safety Backup",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LaborBlue
                 )
             }
         }

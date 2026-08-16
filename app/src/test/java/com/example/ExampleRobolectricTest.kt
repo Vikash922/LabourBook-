@@ -113,6 +113,7 @@ class ExampleRobolectricTest {
   fun `test delete worker creates safety backup and restore brings worker back`() = runBlocking {
     val context = ApplicationProvider.getApplicationContext<Context>()
     val repo = com.example.data.repository.LaborRepository(context)
+    repo.loginWithGoogleAccount(name = "Test Contractor", email = "test.contractor@gmail.com")
 
     // Add a worker with attendance
     val worker = repo.addWorker("Suresh Raina", "9123456789", 700.0, listOf("Mason"))
@@ -125,6 +126,14 @@ class ExampleRobolectricTest {
     val backupMeta = backupResult.getOrNull()
     assertNotNull(backupMeta)
     assertTrue(backupMeta!!.workerCount >= 1)
+
+    // Save drive backup snapshot locally as well for immediate retrieval in tests
+    GoogleDriveBackupService.saveBackupToUserDrive(
+        context = context,
+        workers = repo.workers.value,
+        transactions = repo.transactions.value,
+        profile = repo.userProfile.value
+    )
 
     val initialCount = repo.workers.value.size
 

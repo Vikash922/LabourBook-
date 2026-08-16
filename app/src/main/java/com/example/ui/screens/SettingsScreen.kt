@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
@@ -104,9 +105,12 @@ fun SettingsScreen(
 
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showDriveBackupSheet by remember { mutableStateOf(false) }
+    var showCsvOptionsSheet by remember { mutableStateOf(false) }
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
     var tempName by remember { mutableStateOf("") }
+    var showEditMobileDialog by remember { mutableStateOf(false) }
+    var tempMobile by remember { mutableStateOf("") }
     var isBackingUp by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
 
@@ -232,9 +236,11 @@ fun SettingsScreen(
                         // Mobile Row
                         SettingsSimpleRow(
                             title = AppStrings.get("mobile", lang),
-                            value = userProfile.mobile,
+                            value = userProfile.mobile.ifBlank { "Not Set" },
+                            icon = Icons.Default.Call,
                             onClick = {
-                                Toast.makeText(context, "Registered Mobile: ${userProfile.mobile}", Toast.LENGTH_SHORT).show()
+                                tempMobile = userProfile.mobile
+                                showEditMobileDialog = true
                             }
                         )
                         HorizontalDivider(color = Color(0xFFF3F4F6))
@@ -327,7 +333,7 @@ fun SettingsScreen(
                                         color = Color(0xFF1E293B)
                                     )
                                     Text(
-                                        text = userProfile.email.ifBlank { "jyoti3322114455@gmail.com" },
+                                        text = userProfile.email.ifBlank { "Not Connected" },
                                         fontSize = 11.sp,
                                         color = Color(0xFF64748B)
                                     )
@@ -480,10 +486,10 @@ fun SettingsScreen(
                         // Full App CSV Backup Export
                         SettingsSimpleRow(
                             title = "Export All Data (.CSV - Low Storage)",
-                            value = "Share/Save",
+                            value = "Save / Share",
                             icon = Icons.Default.TableChart,
                             onClick = {
-                                viewModel.exportAndShareBackupCsv(context)
+                                showCsvOptionsSheet = true
                             }
                         )
                         HorizontalDivider(color = Color(0xFFF3F4F6))
@@ -619,12 +625,21 @@ fun SettingsScreen(
                         lineHeight = 18.sp
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "All labour attendance histories and cash logs from this point will be restored.",
-                        fontSize = 12.sp,
-                        color = LaborBlue,
-                        fontWeight = FontWeight.Medium
-                    )
+                    if (target.workerCount == 0) {
+                        Text(
+                            text = "⚠️ Note: This snapshot has 0 workers. If you accidentally deleted a worker, select a Pre-Delete or Manual snapshot from the list that has 1+ workers.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFDC2626),
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            text = "✓ All ${target.workerCount} workers, attendance records, wages, and cash logs will be fully restored.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF15803D),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -874,22 +889,23 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Previous Snapshots Section
+                // Master Backup File Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Available Snapshots (${availableBackups.size})",
+                        text = "Google Drive Master Backup",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = LaborTextPrimary
                     )
                     Text(
-                        text = "Tap Restore to load",
+                        text = "Single Master File (Storage-Saving)",
                         fontSize = 11.sp,
-                        color = LaborTextSecondary
+                        color = Color(0xFF15803D),
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -903,7 +919,7 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                     ) {
                         Text(
-                            text = "No previous snapshots saved yet. Tap 'Backup Now' to create your first cloud snapshot point.",
+                            text = "No backup file found yet. Tap 'Backup Now' to save your master cloud backup.",
                             fontSize = 12.sp,
                             color = LaborTextSecondary,
                             modifier = Modifier.padding(14.dp)
@@ -917,53 +933,56 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         items(availableBackups) { backup ->
-                            val isSafety = backup.fileName.startsWith("safety_")
-                            val isCsv = backup.fileName.endsWith(".csv")
+                            val isCsv = backup.fileName.contains(".CSV", ignoreCase = true)
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isSafety) Color(0xFFFFFBEB) else Color(0xFFF9FAFB)
+                                    containerColor = if (isCsv) Color(0xFFF9FAFB) else Color(0xFFF0FDF4)
                                 ),
-                                border = BorderStroke(1.dp, if (isSafety) Color(0xFFFDE68A) else Color(0xFFE5E7EB))
+                                border = BorderStroke(1.dp, if (isCsv) Color(0xFFE5E7EB) else Color(0xFFBBF7D0))
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(10.dp),
+                                        .padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                text = backup.dateString,
+                                                text = if (isCsv) "Device Master Backup (.CSV)" else "Google Drive Master Backup",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = LaborTextPrimary
                                             )
-                                            if (isSafety) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = Color(0xFFFEF3C7)
-                                                ) {
-                                                    Text(
-                                                        text = "Pre-Delete",
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color(0xFF92400E),
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                                    )
-                                                }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = if (isCsv) Color(0xFFE0E7FF) else Color(0xFFDCFCE7)
+                                            ) {
+                                                Text(
+                                                    text = if (isCsv) "CSV Backup" else "Active Master",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isCsv) Color(0xFF3730A3) else Color(0xFF166534),
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                )
                                             }
                                         }
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = "Updated: ${backup.dateString}",
+                                            fontSize = 11.sp,
+                                            color = LaborTextSecondary
+                                        )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "👥 ${backup.workerCount} Workers • 💵 ${backup.transactionCount} Cash (${backup.fileSizeKb} KB)",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = if (backup.workerCount > 0) Color(0xFF15803D) else LaborTextSecondary
+                                            color = if (backup.workerCount > 0) Color(0xFF15803D) else Color(0xFFDC2626)
                                         )
                                     }
 
@@ -973,7 +992,7 @@ fun SettingsScreen(
                                         },
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = LaborBlue),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                         modifier = Modifier.height(34.dp)
                                     ) {
                                         Icon(Icons.Default.Restore, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
@@ -1147,6 +1166,144 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (showEditMobileDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditMobileDialog = false },
+            title = { Text(AppStrings.get("mobile", lang), fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            text = {
+                OutlinedTextField(
+                    value = tempMobile,
+                    onValueChange = { tempMobile = it },
+                    placeholder = { Text("Enter Mobile Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateMobile(tempMobile.trim())
+                        showEditMobileDialog = false
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
+                ) {
+                    Text(AppStrings.get("save", lang), color = Color.White)
+                }
+            }
+        )
+    }
+
+    // CSV Backup & Export Options Bottom Sheet
+    if (showCsvOptionsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCsvOptionsSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.TableChart,
+                        contentDescription = null,
+                        tint = Color(0xFF059669),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Full App CSV Backup",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Exports all workers, complete attendance logs, and cash entries into an ultra-compact .CSV file. Every export rewrites the previous backup so no extra files accumulate.",
+                    fontSize = 13.sp,
+                    color = LaborTextSecondary,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Option 1: Direct Save to Device (Downloads)
+                Button(
+                    onClick = {
+                        viewModel.saveCsvBackupToDevice(context) { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            if (success) showCsvOptionsSheet = false
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("save_csv_device_direct_btn"),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileDownload,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Save to Device (Downloads Folder)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Option 2: Share / Send CSV File
+                OutlinedButton(
+                    onClick = {
+                        viewModel.exportAndShareBackupCsv(context) { success, msg ->
+                            if (!success) {
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        showCsvOptionsSheet = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("share_csv_file_btn"),
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.5.dp, Color(0xFF059669))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = Color(0xFF059669),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Share .CSV via WhatsApp / Email / Drive",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF059669)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
     }
 }
 

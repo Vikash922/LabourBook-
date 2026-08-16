@@ -129,9 +129,9 @@ data class SavedContact(
 
 data class UserProfile(
     val name: String = "Manager",
-    val businessName: String = "Laborbook Pro Master",
-    val mobile: String = "7848894498",
-    val email: String = "jyoti3322114455@gmail.com",
+    val businessName: String = "My Business",
+    val mobile: String = "",
+    val email: String = "",
     val appLockEnabled: Boolean = false,
     val language: String = "English",
     val isPro: Boolean = true,

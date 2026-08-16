@@ -5,24 +5,35 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Base Background Gradient -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="0"
-                android:startY="0"
-                android:endX="108"
-                android:endY="108"
+                android:startX="15"
+                android:startY="10"
+                android:endX="95"
+                android:endY="98"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#1E6BFF" />
-                <item android:offset="0.5" android:color="#1656D6" />
-                <item android:offset="1.0" android:color="#0D3A9C" />
+                <item android:offset="0.0" android:color="#2B6CB0" />
+                <item android:offset="0.3" android:color="#1E549F" />
+                <item android:offset="0.7" android:color="#1A4480" />
+                <item android:offset="1.0" android:color="#12305B" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle geometric background grid pattern -->
-    <path
-        android:strokeColor="#1AFFFFFF"
-        android:strokeWidth="1"
-        android:pathData="M18,0 L18,108 M36,0 L36,108 M54,0 L54,108 M72,0 L72,108 M90,0 L90,108 M0,18 L108,18 M0,36 L108,36 M0,54 L108,54 M0,72 L108,72 M0,90 L108,90" />
+    <!-- Soft radial ambient lighting from center-top -->
+    <path android:pathData="M14,14h80v80h-80z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="54"
+                android:centerY="46"
+                android:gradientRadius="48"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#26FFFFFF" />
+                <item android:offset="0.7" android:color="#08FFFFFF" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>
 

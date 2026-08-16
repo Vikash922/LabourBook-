@@ -1,39 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:scaleX="0.8"
-        android:scaleY="0.8"
+        android:scaleX="0.88"
+        android:scaleY="0.88"
         android:pivotX="54"
         android:pivotY="54">
-        <!-- Clipboard / Notebook Base -->
+
+        <!-- Outer Framing Circle Arc -->
+        <path
+            android:strokeColor="#E2E8F0"
+            android:strokeWidth="2.5"
+            android:strokeLineCap="round"
+            android:pathData="M 39.5,74.5 C 33,67 31,56 34,46 C 37,36 45,28 56,26.5 C 67,25 78,30 83.5,39 C 89,48 88,60 81,68" />
+
+        <!-- Outer Clock Ticks -->
+        <path
+            android:strokeColor="#E2E8F0"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:pathData="M 72,31 L 71,33.5 M 82,43 L 79.5,44 M 84,55 L 81.5,55 M 34,58 L 36.5,57.5" />
+
+        <!-- Clock Face Dial (Top-Left Background) -->
+        <path
+            android:fillColor="#153E75"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.5"
+            android:pathData="M 44.5,23 C 51.4,23 57,28.6 57,35.5 C 57,42.4 51.4,48 44.5,48 C 37.6,48 32,42.4 32,35.5 C 32,28.6 37.6,23 44.5,23 Z" />
+
+        <!-- Clock Internal Hour Ticks -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.5"
+            android:strokeLineCap="round"
+            android:pathData="M 44.5,25.5 L 44.5,27.5 M 44.5,43.5 L 44.5,45.5 M 34.5,35.5 L 36.5,35.5 M 52.5,35.5 L 54.5,35.5" />
+
+        <!-- Clock Hands (Pointing to ~9:00) -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 44.5,29.5 L 44.5,35.5 L 38,35.5" />
+
+        <!-- Worker Silhouette (White) -->
+        <!-- 1. Hardhat Helmet -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M34,26 h40 c3.3,0 6,2.7 6,6 v50 c0,3.3 -2.7,6 -6,6 h-40 c-3.3,0 -6,-2.7 -6,-6 v-50 c0,-3.3 2.7,-6 6,-6 z" />
-        <!-- Top Clip -->
+            android:pathData="M 52,32 C 55,30.5 59,30.5 62,32 C 64.5,33.5 65.5,36 65,38.5 L 49,38.5 C 48.5,36 49.5,33.5 52,32 Z" />
+        <!-- Helmet Brim / Visor -->
         <path
-            android:fillColor="#FFB300"
-            android:pathData="M44,22 h20 c1.1,0 2,0.9 2,2 v5 c0,1.1 -0.9,2 -2,2 h-20 c-1.1,0 -2,-0.9 -2,-2 v-5 c0,-1.1 0.9,-2 2,-2 z" />
-        <!-- Worker Helmet Graphic -->
+            android:fillColor="#FFFFFF"
+            android:pathData="M 47,38 C 47,37.5 57,37 66.5,38 C 67,38.5 66.5,39.8 65.5,40 L 48,40 C 47.2,39.8 46.8,38.5 47,38 Z" />
+
+        <!-- 2. Worker Head & Neck Profile -->
         <path
-            android:fillColor="#1656D6"
-            android:pathData="M54,36 c-9.9,0 -18,8.1 -18,18 h36 c0,-9.9 -8.1,-18 -18,-18 z" />
+            android:fillColor="#FFFFFF"
+            android:pathData="M 54,40 C 58,40 60.5,42.5 60.5,45.5 C 60.5,48.5 58.5,50 56,50.5 L 56,53 L 53,53 L 53,50 C 51.5,49.5 50.5,48 50.5,45.5 C 50.5,42.5 52,40 54,40 Z" />
+
+        <!-- 3. Worker Torso / Uniform / Pants -->
         <path
-            android:fillColor="#FFB300"
-            android:pathData="M32,54 h44 c1.1,0 2,0.9 2,2 c0,1.1 -0.9,2 -2,2 h-44 c-1.1,0 -2,-0.9 -2,-2 c0,-1.1 0.9,-2 2,-2 z" />
+            android:fillColor="#FFFFFF"
+            android:pathData="M 49,53.5 L 61,53.5 C 64.5,54.5 66,57 66,60 L 64,68 L 60,68 L 57.5,74 L 54.5,74 L 54.5,68 L 51,68 L 47,60 C 47,56.5 47.5,54.5 49,53.5 Z" />
+
+        <!-- 4. Left Arm holding Clipboard -->
         <path
-            android:fillColor="#FFD54F"
-            android:pathData="M52,36 h4 v18 h-4 z" />
-        <!-- Ledger Rupee lines -->
+            android:fillColor="#FFFFFF"
+            android:pathData="M 64,57 L 69.5,61.5 L 68,64 L 63.5,60.5 Z" />
+
+        <!-- Clipboard Base & Top Clip -->
         <path
-            android:fillColor="#1656D6"
-            android:pathData="M36,66 h36 v3 h-36 z M36,73 h24 v3 h-24 z" />
+            android:fillColor="#153E75"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 67.5,58 L 76.5,62.5 L 72.5,72 L 63.5,67.5 Z" />
+        <!-- Clipboard Lines -->
         <path
-            android:fillColor="#1E9E5A"
-            android:pathData="M66,71 c0,-1.1 0.9,-2 2,-2 h4 c1.1,0 2,0.9 2,2 v4 c0,1.1 -0.9,2 -2,2 h-4 c-1.1,0 -2,-0.9 -2,-2 z" />
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round"
+            android:pathData="M 67.5,63.5 L 73,66.2 M 66.5,66 L 71.5,68.5" />
+
+        <!-- 5. Right Arm & Hand holding Hammer -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 49,57 L 44,63 L 46.5,65 L 51,60 Z" />
+
+        <!-- Hammer (Handle & Head) -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:pathData="M 43,67 L 53,58" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 52,55.5 L 57,59.5 L 55,61.5 L 50,57.5 Z" />
+
+        <!-- Bright Vibrant Glowing Green Checkmark (Hero Accent) -->
+        <!-- Outer Soft Glow / Shadow Layer -->
+        <path
+            android:strokeColor="#2010B981"
+            android:strokeWidth="12"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 47,75 L 56.5,84.5 L 79,64" />
+        <path
+            android:strokeColor="#4022C55E"
+            android:strokeWidth="8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 47,75 L 56.5,84.5 L 79,64" />
+
+        <!-- Core Vibrant Green Checkmark with Gradient Fill -->
+        <path
+            android:strokeWidth="6"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M 47,75 L 56.5,84.5 L 79,64">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startX="46"
+                    android:startY="78"
+                    android:endX="80"
+                    android:endY="62"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#22C55E" />
+                    <item android:offset="0.6" android:color="#4ADE80" />
+                    <item android:offset="1.0" android:color="#86EFAC" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>
 

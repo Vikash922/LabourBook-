@@ -34,11 +34,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Check if Firebase user is authenticated on startup and navigate to dashboard
+        viewModel.checkFirebaseAutoLogin(isStartup = true)
         setContent {
             LaborbookTheme {
                 LaborbookApp(viewModel = viewModel)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.checkFirebaseAutoLogin(isStartup = false)
     }
 }
 

@@ -17,16 +17,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,11 +37,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,25 +73,41 @@ fun LoginScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    var selectedGoogleEmail by remember { mutableStateOf("jyoti3322114455@gmail.com") }
-    var selectedGoogleName by remember { mutableStateOf("Jyoti Manager") }
-    var showSwitchAccountDialog by remember { mutableStateOf(false) }
-    var customGoogleEmailInput by remember { mutableStateOf("") }
-    var customGoogleNameInput by remember { mutableStateOf("") }
+    var businessNameInput by remember { mutableStateOf("") }
+    var mobileInput by remember { mutableStateOf("") }
+    var googleEmailInput by remember { mutableStateOf("") }
+    var deviceAccounts by remember { mutableStateOf<List<String>>(emptyList()) }
     var isSigningIn by remember { mutableStateOf(false) }
+    var showEmailEditField by remember { mutableStateOf(false) }
 
-    val performSignIn: (String, String) -> Unit = { name, email ->
-        isSigningIn = true
-        viewModel.loginWithGoogle(
-            name = name,
-            email = email
-        ) { success, msg ->
-            isSigningIn = false
-            Toast.makeText(
-                context,
-                msg,
-                Toast.LENGTH_LONG
-            ).show()
+    // Automatically detect device Google accounts on launch
+    LaunchedEffect(Unit) {
+        val detected = viewModel.getDeviceAccounts(context)
+        deviceAccounts = detected
+        if (detected.isNotEmpty() && googleEmailInput.isBlank()) {
+            googleEmailInput = detected.first()
+        }
+    }
+
+    val executeLogin: (String) -> Unit = { targetEmail ->
+        val email = targetEmail.trim().lowercase()
+        if (email.isBlank()) {
+            Toast.makeText(context, "Please enter or select your Google account email", Toast.LENGTH_SHORT).show()
+        } else {
+            val bizName = businessNameInput.trim().ifBlank { "My Business" }
+            val mobile = mobileInput.trim()
+            val userName = if (businessNameInput.isNotBlank()) businessNameInput.trim() else email.substringBefore("@").replaceFirstChar { it.uppercase() }
+
+            isSigningIn = true
+            viewModel.loginWithGoogle(
+                name = userName,
+                email = email,
+                businessName = bizName,
+                mobile = mobile
+            ) { success, msg ->
+                isSigningIn = false
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -111,34 +131,34 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 32.dp),
+                .padding(horizontal = 24.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // App Brand Logo & Title
             Box(
                 modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(68.dp)
+                    .clip(RoundedCornerShape(18.dp))
                     .background(Color.White)
-                    .padding(12.dp),
+                    .padding(10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "LB",
                     color = LaborBlue,
-                    fontSize = 28.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = "Laborbook",
                 color = Color.White,
-                fontSize = 28.sp,
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("login_app_title")
             )
@@ -146,13 +166,13 @@ fun LoginScreen(
             Text(
                 text = "Smart Attendance, Wages & Cash Book",
                 color = Color.White.copy(alpha = 0.9f),
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Main Google Authentication Card
+            // Main Setup & Login Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,122 +182,182 @@ fun LoginScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Sign in with Google",
-                        fontSize = 20.sp,
+                        text = "Setup Your Business Profile",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = LaborTextPrimary
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Connect your verified Google Account to automatically backup & restore all your records to Google Drive.",
-                        fontSize = 13.sp,
+                        text = "Enter your company details to sync and protect your records.",
+                        fontSize = 12.sp,
                         color = LaborTextSecondary,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 18.sp
+                        textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
-                    // Selected Google Account Badge (Clickable to sign in directly)
-                    Card(
+                    // 1. Company / Business Name Input
+                    OutlinedTextField(
+                        value = businessNameInput,
+                        onValueChange = { businessNameInput = it },
+                        label = { Text("Company / Business Name") },
+                        placeholder = { Text("e.g. Kiran Construction") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Business,
+                                contentDescription = null,
+                                tint = LaborBlue
+                            )
+                        },
+                        singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("account_selection_card"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F4FF)),
-                        border = BorderStroke(1.5.dp, LaborBlue.copy(alpha = 0.35f)),
-                        onClick = {
-                            performSignIn(selectedGoogleName, selectedGoogleEmail)
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            .testTag("company_name_input"),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 2. Mobile Number Input
+                    OutlinedTextField(
+                        value = mobileInput,
+                        onValueChange = { mobileInput = it },
+                        label = { Text("Mobile Number") },
+                        placeholder = { Text("e.g. 9876543210") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Call,
+                                contentDescription = null,
+                                tint = LaborBlue
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("mobile_number_input"),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 3. Google Account Section
+                    if (googleEmailInput.isNotBlank() && !showEmailEditField) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                            border = BorderStroke(1.dp, LaborSuccess.copy(alpha = 0.4f))
                         ) {
                             Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(LaborBlue),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = LaborSuccess,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = "Google Drive Sync Account",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF166534)
+                                        )
+                                        Text(
+                                            text = googleEmailInput,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = LaborTextPrimary
+                                        )
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = { showEmailEditField = true },
+                                    modifier = Modifier.testTag("change_email_btn")
                                 ) {
                                     Text(
-                                        text = selectedGoogleName.take(1).uppercase(),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = selectedGoogleName,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborTextPrimary
-                                    )
-                                    Text(
-                                        text = selectedGoogleEmail,
+                                        text = "Change",
                                         fontSize = 11.sp,
-                                        color = LaborTextSecondary
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "Tap to login instantly",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontWeight = FontWeight.Bold,
                                         color = LaborBlue
                                     )
                                 }
                             }
-
-                            TextButton(
-                                onClick = { showSwitchAccountDialog = true },
-                                modifier = Modifier.testTag("switch_google_account_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SwapHoriz,
-                                    contentDescription = null,
-                                    tint = LaborBlue,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Switch",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LaborBlue
-                                )
-                            }
                         }
+                    } else {
+                        OutlinedTextField(
+                            value = googleEmailInput,
+                            onValueChange = { googleEmailInput = it },
+                            label = { Text("Google Account Email") },
+                            placeholder = { Text("your.email@gmail.com") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Email,
+                                    contentDescription = null,
+                                    tint = LaborBlue
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("google_email_input"),
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Primary Google Sign-In Action Button
+                    // Primary Direct Login / Start Button
                     Button(
                         onClick = {
-                            performSignIn(selectedGoogleName, selectedGoogleEmail)
+                            if (googleEmailInput.isNotBlank()) {
+                                executeLogin(googleEmailInput)
+                            } else {
+                                // Try Google Credential Manager or prompt
+                                isSigningIn = true
+                                viewModel.signInWithGoogleCredentialManager(
+                                    context = context,
+                                    fallbackName = businessNameInput.ifBlank { "User" },
+                                    fallbackEmail = "",
+                                    businessName = businessNameInput.ifBlank { "My Business" },
+                                    mobile = mobileInput
+                                ) { success, msg ->
+                                    isSigningIn = false
+                                    if (!success) {
+                                        showEmailEditField = true
+                                        Toast.makeText(context, "Please type your Google email to continue", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         },
                         enabled = !isSigningIn,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
                             .testTag("google_login_button"),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
                     ) {
                         if (isSigningIn) {
@@ -287,16 +367,15 @@ fun LoginScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Connecting Google Drive...", color = Color.White, fontSize = 14.sp)
+                            Text("Connecting...", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                         } else {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                // Google G Badge
                                 Box(
                                     modifier = Modifier
-                                        .size(26.dp)
+                                        .size(24.dp)
                                         .clip(CircleShape)
                                         .background(Color.White),
                                     contentAlignment = Alignment.Center
@@ -305,12 +384,12 @@ fun LoginScreen(
                                         text = "G",
                                         color = LaborBlue,
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
+                                        fontSize = 14.sp
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = "Continue with Google Account",
+                                    text = "Start & Sync with Google",
                                     color = Color.White,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
@@ -330,11 +409,11 @@ fun LoginScreen(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             tint = LaborSuccess,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Automatic Google Drive sync & restore enabled",
+                            text = "Automatic Google Drive sync & instant cloud restore",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF4B5563)
@@ -343,172 +422,41 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Google Cloud & Security Pillars Card
+            // Cloud & Security Pillars Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f))
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     AuthFeatureRow(
                         icon = Icons.Default.Restore,
                         iconColor = Color(0xFF0288D1),
                         title = "Automatic Google Drive Restore",
-                        description = "When you log in with your Google account, your previous labor and cash data is automatically restored."
+                        description = "When you log in, your previous labor and cash records are automatically restored."
                     )
                     HorizontalDivider(color = Color(0xFFF3F4F6))
                     AuthFeatureRow(
                         icon = Icons.Default.CloudSync,
                         iconColor = LaborBlue,
                         title = "Continuous & Logout Backup",
-                        description = "Every transaction and attendance mark updates your Drive backup. Auto-syncs before you log out."
+                        description = "Every attendance mark and transaction updates your Google Drive backup in the cloud."
                     )
                     HorizontalDivider(color = Color(0xFFF3F4F6))
                     AuthFeatureRow(
                         icon = Icons.Default.Shield,
                         iconColor = LaborSuccess,
-                        title = "Separate Account Isolation",
-                        description = "Each Google account keeps its own separate, encrypted dataset. One account can never access another's backup."
+                        title = "Isolated User Space",
+                        description = "Your company records are completely private to your Google account."
                     )
                 }
             }
         }
-    }
-
-    // Switch Google Account Dialog
-    if (showSwitchAccountDialog) {
-        AlertDialog(
-            onDismissRequest = { showSwitchAccountDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        tint = LaborBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select Google Account", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                }
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Sign in with a verified Google account to isolate your records:",
-                        fontSize = 12.sp,
-                        color = LaborTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Preset Verified Google Account
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp)),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selectedGoogleEmail == "jyoti3322114455@gmail.com") Color(0xFFEFF6FF) else Color(0xFFF9FAFB)
-                        ),
-                        border = BorderStroke(
-                            1.dp,
-                            if (selectedGoogleEmail == "jyoti3322114455@gmail.com") LaborBlue else Color(0xFFE5E7EB)
-                        ),
-                        onClick = {
-                            selectedGoogleEmail = "jyoti3322114455@gmail.com"
-                            selectedGoogleName = "Jyoti Manager"
-                            showSwitchAccountDialog = false
-                            performSignIn("Jyoti Manager", "jyoti3322114455@gmail.com")
-                        }
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF4285F4)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("J", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text("Jyoti Manager", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                Text("jyoti3322114455@gmail.com", fontSize = 11.sp, color = LaborTextSecondary)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "Or enter another Google Account:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = LaborTextPrimary
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    OutlinedTextField(
-                        value = customGoogleNameInput,
-                        onValueChange = { customGoogleNameInput = it },
-                        label = { Text("Account Name") },
-                        placeholder = { Text("e.g. Ramesh Site Manager") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    OutlinedTextField(
-                        value = customGoogleEmailInput,
-                        onValueChange = { customGoogleEmailInput = it },
-                        label = { Text("Google Email (@gmail.com / Workspace)") },
-                        placeholder = { Text("contractor@gmail.com") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val email = customGoogleEmailInput.trim()
-                        if (email.isNotBlank()) {
-                            if (!email.contains("@") || !email.contains(".")) {
-                                Toast.makeText(context, "Please enter a valid Google email address", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val validEmail = email.lowercase()
-                            val validName = if (customGoogleNameInput.isNotBlank()) customGoogleNameInput.trim() else email.substringBefore("@").replaceFirstChar { it.uppercase() }
-                            selectedGoogleEmail = validEmail
-                            selectedGoogleName = validName
-                            showSwitchAccountDialog = false
-                            performSignIn(validName, validEmail)
-                        } else {
-                            showSwitchAccountDialog = false
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
-                ) {
-                    Text("Sign In", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSwitchAccountDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 
@@ -525,7 +473,7 @@ private fun AuthFeatureRow(
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .background(iconColor.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
@@ -534,14 +482,14 @@ private fun AuthFeatureRow(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column {
             Text(
                 text = title,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = LaborTextPrimary
             )
@@ -550,7 +498,7 @@ private fun AuthFeatureRow(
                 text = description,
                 fontSize = 11.sp,
                 color = LaborTextSecondary,
-                lineHeight = 15.sp
+                lineHeight = 14.sp
             )
         }
     }

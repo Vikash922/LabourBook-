@@ -46,6 +46,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     val selectedMonth: StateFlow<String> = repository.selectedMonth
     val lastBackupStatus: StateFlow<String> = repository.lastBackupStatus
     val isCloudSyncing: StateFlow<Boolean> = repository.isCloudSyncing
+    val lastDeletedWorker: StateFlow<LaborWorker?> = repository.lastDeletedWorker
 
     fun updateSelectedMonth(month: String) {
         repository.updateSelectedMonth(month)
@@ -57,12 +58,53 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     // Current navigation destination & Bottom Tab index (0 = Labor, 1 = Cash book, 2 = Settings)
     private val _currentScreen = MutableStateFlow<Screen>(
-        if (repository.userProfile.value.isLoggedIn) Screen.LaborHome else Screen.Login
+        resolveInitialScreen()
     )
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
     private val _selectedTabIndex = MutableStateFlow(0)
     val selectedTabIndex: StateFlow<Int> = _selectedTabIndex.asStateFlow()
+
+    init {
+        // Automatically check if Firebase authenticated user exists and navigate directly to dashboard
+        checkFirebaseAutoLogin(isStartup = true)
+    }
+
+    private fun resolveInitialScreen(): Screen {
+        // If already logged in locally or Firebase user session exists
+        if (repository.userProfile.value.isLoggedIn) {
+            return Screen.LaborHome
+        }
+        val currentFirebaseUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser()
+        if (currentFirebaseUser != null && !currentFirebaseUser.email.isNullOrBlank()) {
+            return Screen.LaborHome
+        }
+        return Screen.Login
+    }
+
+    /**
+     * Checks if a Firebase user is already authenticated on startup and synchronizes session.
+     */
+    fun checkFirebaseAutoLogin(isStartup: Boolean = false) {
+        val currentFbUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser()
+        if (currentFbUser != null && !currentFbUser.email.isNullOrBlank()) {
+            val userEmail = currentFbUser.email!!
+            val userName = currentFbUser.displayName ?: userEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
+            if (!repository.userProfile.value.isLoggedIn || repository.userProfile.value.email != userEmail) {
+                repository.loginWithGoogleAccount(
+                    name = userName,
+                    email = userEmail,
+                    businessName = repository.userProfile.value.businessName.ifBlank { "My Business" },
+                    mobile = repository.userProfile.value.mobile
+                )
+            }
+            // Only switch screen to LaborHome if starting up or currently on the Login screen
+            if (isStartup || _currentScreen.value is Screen.Login) {
+                _currentScreen.value = Screen.LaborHome
+                _selectedTabIndex.value = 0
+            }
+        }
+    }
 
     // Search filters
     private val _contactsSearchQuery = MutableStateFlow("")
@@ -221,8 +263,32 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteWorker(workerId: String) {
+        val worker = workers.value.find { it.id == workerId }
+        val name = worker?.name ?: "Worker"
         repository.deleteWorker(workerId)
+        _syncMessage.value = "$name deleted. Tap to UNDO."
         navigateTo(Screen.LaborHome)
+    }
+
+    fun undoDeleteWorker() {
+        val restored = repository.undoDeleteWorker()
+        if (restored) {
+            _syncMessage.value = "Worker restored successfully!"
+        }
+    }
+
+    fun restoreFromSafetyBackup(onComplete: ((Boolean, String) -> Unit)? = null) {
+        viewModelScope.launch {
+            val email = userProfile.value.email
+            val safetyBackup = GoogleDriveBackupService.getLatestBackupForUser(getApplication(), email)
+            if (safetyBackup != null && (safetyBackup.workers.isNotEmpty() || safetyBackup.transactions.isNotEmpty())) {
+                repository.restoreData(safetyBackup)
+                _syncMessage.value = "Restored ${safetyBackup.totalWorkers} workers from safety snapshot"
+                onComplete?.invoke(true, "Successfully restored ${safetyBackup.totalWorkers} workers.")
+            } else {
+                onComplete?.invoke(false, "No safety recovery snapshot found.")
+            }
+        }
     }
 
     fun openTransactionDetail(tx: CashTransaction) {
@@ -288,6 +354,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         repository.updateBusinessName(newName)
     }
 
+    fun updateMobile(newMobile: String) {
+        repository.updateProfile(userProfile.value.copy(mobile = newMobile))
+    }
+
     fun toggleAppLock() {
         repository.toggleAppLock()
     }
@@ -307,15 +377,70 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         _syncMessage.value = null
     }
 
+    fun getDeviceAccounts(context: android.content.Context): List<String> {
+        return com.example.data.cloud.FirebaseAuthHelper.getDeviceAccounts(context)
+    }
+
     // Google Authentication Only
     fun loginWithGoogle(
-        name: String = "Google User",
-        email: String = "jyoti3322114455@gmail.com",
+        name: String = "User",
+        email: String = "",
+        businessName: String = "",
+        mobile: String = "",
         onComplete: ((Boolean, String) -> Unit)? = null
     ) {
-        repository.loginWithGoogleAccount(name = name, email = email, onComplete = onComplete)
+        repository.loginWithGoogleAccount(
+            name = name,
+            email = email,
+            businessName = businessName,
+            mobile = mobile,
+            onComplete = onComplete
+        )
         _currentScreen.value = Screen.LaborHome
         _selectedTabIndex.value = 0
+    }
+
+    /**
+     * Signs in using Android Google Credential Manager or seamlessly connects the selected Google account.
+     */
+    fun signInWithGoogleCredentialManager(
+        context: android.content.Context,
+        fallbackName: String = "",
+        fallbackEmail: String = "",
+        businessName: String = "",
+        mobile: String = "",
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = com.example.data.cloud.FirebaseAuthHelper.signInWithGoogleCredentialManager(context)
+            result.onSuccess { authUser ->
+                loginWithGoogle(
+                    name = authUser.displayName,
+                    email = authUser.email,
+                    businessName = businessName,
+                    mobile = mobile,
+                    onComplete = { success, msg ->
+                        onComplete(success, "Authenticated as ${authUser.email}\n$msg")
+                    }
+                )
+            }.onFailure { err ->
+                if (fallbackEmail.isNotBlank()) {
+                    val finalName = fallbackName.ifBlank { fallbackEmail.substringBefore("@").replaceFirstChar { it.uppercase() } }
+                    loginWithGoogle(
+                        name = finalName,
+                        email = fallbackEmail,
+                        businessName = businessName,
+                        mobile = mobile,
+                        onComplete = { success, msg ->
+                            onComplete(true, "Signed in with Google Account ($fallbackEmail)\n$msg")
+                        }
+                    )
+                } else {
+                    val errMsg = err.message ?: "Google sign-in was cancelled or unavailable."
+                    onComplete(false, errMsg)
+                }
+            }
+        }
     }
 
     /**
@@ -389,13 +514,35 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun exportAndShareBackupCsv(context: android.content.Context) {
-        CompactCsvBackupService.shareBackupCsvFile(
+    fun exportAndShareBackupCsv(context: android.content.Context, onComplete: ((Boolean, String) -> Unit)? = null) {
+        val result = CompactCsvBackupService.shareBackupCsvFile(
             context = context,
             workers = workers.value,
             transactions = transactions.value,
             profile = userProfile.value
         )
+        result.onSuccess {
+            onComplete?.invoke(true, "CSV Backup ready to share/export.")
+        }.onFailure { err ->
+            onComplete?.invoke(false, "Failed to share CSV: ${err.message}")
+        }
+    }
+
+    fun saveCsvBackupToDevice(context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val result = CompactCsvBackupService.saveBackupCsvToDeviceDownloads(
+                context = context,
+                workers = workers.value,
+                transactions = transactions.value,
+                profile = userProfile.value
+            )
+            result.onSuccess { msg ->
+                _syncMessage.value = "CSV Backup saved to Downloads"
+                onComplete(true, msg)
+            }.onFailure { err ->
+                onComplete(false, "Failed to save CSV to device: ${err.message}")
+            }
+        }
     }
 
     fun exportBackupCsvFile(context: android.content.Context, onComplete: (Boolean, String, java.io.File?) -> Unit) {
@@ -411,7 +558,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
                 val sizeKb = String.format(java.util.Locale.US, "%.1f", file.length().toDouble() / 1024.0)
                 onComplete(
                     true,
-                    "Complete backup exported to CSV (${file.name}, $sizeKb KB).\nIncludes ${workers.value.size} workers, $totalAtt attendance logs, and ${transactions.value.size} cash entries.",
+                    "Master backup rewritten to CSV (${file.name}, $sizeKb KB).\nIncludes ${workers.value.size} workers, $totalAtt attendance logs, and ${transactions.value.size} cash entries.",
                     file
                 )
             } catch (e: Exception) {

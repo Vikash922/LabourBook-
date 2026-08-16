@@ -14,7 +14,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class CloudBackupRecord(
     val driveFileId: String,
@@ -37,8 +36,8 @@ object GoogleDriveCloudService {
     }
 
     /**
-     * Uploads the full backup payload to Google Drive & Cloud Firestore for this user.
-     * Generates a unique Drive File ID and persists the complete serialized state.
+     * Uploads and rewrites the master backup payload to Google Drive & Cloud Firestore for this user.
+     * Protects manual and safety snapshots from being wiped by automatic empty-state syncs.
      */
     suspend fun uploadBackupToCloud(
         context: Context?,
@@ -47,27 +46,23 @@ object GoogleDriveCloudService {
         profile: UserProfile,
         reason: String = "Manual / Auto-Sync"
     ): Result<CloudBackupRecord> {
-        val email = profile.email.ifBlank { "jyoti3322114455@gmail.com" }.lowercase().trim()
+        val email = profile.email.ifBlank { "default_user" }.lowercase().trim()
         val userKey = sanitizeUserKey(email)
-        val driveFileId = "drive_file_" + UUID.randomUUID().toString().replace("-", "").take(16)
+        val driveFileId = "drive_master_$userKey"
         val timestampStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
         val timestampMillis = System.currentTimeMillis()
+        val isManual = reason.contains("Manual")
+        val isSafety = reason.contains("Safety") || reason.contains("Pre-delete")
 
-        Log.i(TAG, "Initiating Google Drive backup upload for account: $email ($reason)...")
+        Log.i(TAG, "Updating master Google Drive backup for account: $email ($reason)...")
 
         // 1. Generate full backup JSON
         val backupJson = GoogleDriveBackupService.generateBackupJson(workers, transactions, profile)
 
-        // 2. Also cache in internal user files directory
+        // 2. Overwrite master file in internal user files directory
         if (context != null) {
             try {
-                val dir = File(context.filesDir, "google_drive_backups/$userKey")
-                if (!dir.exists()) dir.mkdirs()
-                val localFile = File(dir, "latest_drive_backup.json")
-                localFile.writeText(backupJson)
-
-                val snapFile = File(dir, "${driveFileId}.json")
-                snapFile.writeText(backupJson)
+                GoogleDriveBackupService.saveBackupToUserDrive(context, workers, transactions, profile, isManual = isManual)
             } catch (e: Exception) {
                 Log.w(TAG, "Local cache warning: ${e.message}")
             }
@@ -84,8 +79,7 @@ object GoogleDriveCloudService {
             checksum = "SHA256-${backupJson.hashCode()}"
         )
 
-        // 3. Upload to Cloud Firestore (Survives Clear App Data)
-        var cloudUploadSuccess = false
+        // 3. Upload & Overwrite in single Cloud master record
         try {
             val db = FirebaseFirestore.getInstance()
             val userDocRef = db.collection(COLLECTION_BACKUPS).document(userKey)
@@ -103,97 +97,136 @@ object GoogleDriveCloudService {
                 "lastUploadReason" to reason
             )
 
-            // Save as 'latest' document
             withTimeoutOrNull(8000) {
-                userDocRef.collection("snapshots").document("latest").set(payload, SetOptions.merge()).await()
-                userDocRef.collection("snapshots").document(driveFileId).set(payload).await()
-                userDocRef.set(
-                    hashMapOf(
-                        "latestDriveFileId" to driveFileId,
-                        "lastBackupTime" to timestampStr,
-                        "accountEmail" to email,
-                        "totalWorkers" to workers.size,
-                        "totalTransactions" to transactions.size
-                    ),
-                    SetOptions.merge()
-                ).await()
+                if (isManual) {
+                    userDocRef.collection("snapshots").document("latest").set(payload, SetOptions.merge()).await()
+                    userDocRef.set(payload, SetOptions.merge()).await()
+                } else {
+                    // Auto-sync: If workers is 0, do not overwrite 'latest' if 'latest' already had workers
+                    val existingLatest = try { userDocRef.collection("snapshots").document("latest").get().await() } catch (_: Exception) { null }
+                    val existingWorkerCount = existingLatest?.getLong("workerCount") ?: 0L
+
+                    if (workers.isNotEmpty() || existingWorkerCount == 0L) {
+                        userDocRef.collection("snapshots").document("latest").set(payload, SetOptions.merge()).await()
+                        userDocRef.set(payload, SetOptions.merge()).await()
+                    }
+                }
             }
-            cloudUploadSuccess = true
-            Log.i(TAG, "UPLOAD SUCCESS: Drive File ID: $driveFileId | Account: $email | Workers: ${workers.size} | Cash Entries: ${transactions.size} | Timestamp: $timestampStr")
+            Log.i(TAG, "OVERWRITE SUCCESS: Master Drive File: $driveFileId | Account: $email | Workers: ${workers.size} | Reason: $reason")
         } catch (e: Exception) {
-            Log.e(TAG, "Cloud upload network warning: ${e.message}. Offline sandbox cached locally.")
+            Log.e(TAG, "Cloud upload network warning: ${e.message}. Offline master cached locally.")
         }
 
         return Result.success(record)
     }
 
     /**
-     * Downloads and parses the latest Google Drive backup for this user from the Cloud.
-     * If no backup exists, returns Result.failure("No cloud backup found").
+     * Downloads and parses the master Google Drive backup for this user from Cloud.
+     * If latest has 0 workers (e.g. after accidental delete), checks manual backup & safety snapshots.
      */
     suspend fun downloadLatestBackupFromCloud(
         context: Context?,
         email: String
     ): Result<BackupData> {
-        val targetEmail = email.ifBlank { "jyoti3322114455@gmail.com" }.lowercase().trim()
+        val targetEmail = email.ifBlank { "default_user" }.lowercase().trim()
         val userKey = sanitizeUserKey(targetEmail)
 
         Log.i(TAG, "Checking Google Drive & Cloud for account: $targetEmail...")
 
-        // 1. Attempt Cloud Firestore query first (survives app re-installs & Clear App Data)
+        // 1. Attempt Cloud Firestore query first
         try {
             val db = FirebaseFirestore.getInstance()
             val userDocRef = db.collection(COLLECTION_BACKUPS).document(userKey)
 
+            // Check latest snapshot
             val latestSnapshot = withTimeoutOrNull(8000) {
                 userDocRef.collection("snapshots").document("latest").get().await()
             }
 
+            var bestBackupData: BackupData? = null
+
             if (latestSnapshot != null && latestSnapshot.exists()) {
                 val jsonString = latestSnapshot.getString("backupJson")
-                val driveFileId = latestSnapshot.getString("driveFileId") ?: "unknown_drive_id"
-                val backupTime = latestSnapshot.getString("backupTimestamp") ?: "Unknown"
-
                 if (!jsonString.isNullOrBlank()) {
                     val parseResult = GoogleDriveBackupService.parseBackupJson(jsonString)
                     if (parseResult.isSuccess) {
                         val backupData = parseResult.getOrThrow()
-                        Log.i(TAG, "DOWNLOAD SUCCESS: Found cloud backup for $targetEmail | Drive File ID: $driveFileId | Time: $backupTime | Workers: ${backupData.totalWorkers} | Cash Entries: ${backupData.totalTransactions}")
-                        return Result.success(backupData)
-                    }
-                }
-            } else {
-                // Try querying most recent snapshot in collection
-                val querySnap = withTimeoutOrNull(8000) {
-                    userDocRef.collection("snapshots")
-                        .orderBy("timestampMillis", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                        .limit(1)
-                        .get()
-                        .await()
-                }
-                if (querySnap != null && !querySnap.isEmpty) {
-                    val doc = querySnap.documents.first()
-                    val jsonString = doc.getString("backupJson")
-                    val driveFileId = doc.getString("driveFileId") ?: doc.id
-                    if (!jsonString.isNullOrBlank()) {
-                        val parseResult = GoogleDriveBackupService.parseBackupJson(jsonString)
-                        if (parseResult.isSuccess) {
-                            val backupData = parseResult.getOrThrow()
-                            Log.i(TAG, "DOWNLOAD SUCCESS from snapshot list: Drive File ID: $driveFileId | Workers: ${backupData.totalWorkers}")
+                        bestBackupData = backupData
+                        if (backupData.totalWorkers > 0) {
+                            Log.i(TAG, "DOWNLOAD SUCCESS: Master cloud backup for $targetEmail | Workers: ${backupData.totalWorkers}")
                             return Result.success(backupData)
                         }
                     }
                 }
             }
+
+            // If latest had 0 workers, check manual backup snapshot
+            val manualSnapshot = withTimeoutOrNull(5000) {
+                userDocRef.collection("snapshots").document("manual_backup").get().await()
+            }
+            if (manualSnapshot != null && manualSnapshot.exists()) {
+                val jsonString = manualSnapshot.getString("backupJson")
+                if (!jsonString.isNullOrBlank()) {
+                    val parseResult = GoogleDriveBackupService.parseBackupJson(jsonString)
+                    if (parseResult.isSuccess) {
+                        val backupData = parseResult.getOrThrow()
+                        if (backupData.totalWorkers > 0) {
+                            Log.i(TAG, "DOWNLOAD SUCCESS from manual backup: Workers: ${backupData.totalWorkers}")
+                            return Result.success(backupData)
+                        }
+                    }
+                }
+            }
+
+            // Check safety snapshot
+            val safetySnapshot = withTimeoutOrNull(5000) {
+                userDocRef.collection("safety_snapshots").document("latest_safety").get().await()
+            }
+            if (safetySnapshot != null && safetySnapshot.exists()) {
+                val jsonString = safetySnapshot.getString("backupJson")
+                if (!jsonString.isNullOrBlank()) {
+                    val parseResult = GoogleDriveBackupService.parseBackupJson(jsonString)
+                    if (parseResult.isSuccess) {
+                        val backupData = parseResult.getOrThrow()
+                        if (backupData.totalWorkers > 0) {
+                            Log.i(TAG, "DOWNLOAD SUCCESS from safety snapshot: Workers: ${backupData.totalWorkers}")
+                            return Result.success(backupData)
+                        }
+                    }
+                }
+            }
+
+            // Check user doc root as fallback
+            val userDoc = withTimeoutOrNull(5000) {
+                userDocRef.get().await()
+            }
+            if (userDoc != null && userDoc.exists()) {
+                val jsonString = userDoc.getString("backupJson")
+                if (!jsonString.isNullOrBlank()) {
+                    val parseResult = GoogleDriveBackupService.parseBackupJson(jsonString)
+                    if (parseResult.isSuccess) {
+                        val backupData = parseResult.getOrThrow()
+                        if (backupData.totalWorkers > 0) {
+                            Log.i(TAG, "DOWNLOAD SUCCESS from root doc: Workers: ${backupData.totalWorkers}")
+                            return Result.success(backupData)
+                        }
+                        if (bestBackupData == null) bestBackupData = backupData
+                    }
+                }
+            }
+
+            if (bestBackupData != null && (bestBackupData.totalWorkers > 0 || bestBackupData.totalTransactions > 0)) {
+                return Result.success(bestBackupData)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Cloud fetch error or offline: ${e.message}")
         }
 
-        // 2. Fallback to local sandbox files if available (e.g. offline)
+        // 2. Fallback to local sandbox master file or safety file
         if (context != null) {
             val localBackup = GoogleDriveBackupService.getLatestBackupForUser(context, targetEmail)
             if (localBackup != null && (localBackup.workers.isNotEmpty() || localBackup.transactions.isNotEmpty())) {
-                Log.i(TAG, "RESTORE SUCCESS from local cached drive file: Workers: ${localBackup.totalWorkers}")
+                Log.i(TAG, "RESTORE SUCCESS from local master file: Workers: ${localBackup.totalWorkers}")
                 return Result.success(localBackup)
             }
         }

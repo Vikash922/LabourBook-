@@ -39,18 +39,31 @@ data class BackupMetadata(
 
 object GoogleDriveBackupService {
 
+    const val MASTER_BACKUP_FILENAME = "drive_backup_master.json"
+
     private fun sanitizeUserKey(email: String): String {
         return if (email.isBlank()) "default_user" 
         else email.lowercase().trim().replace("@", "_at_").replace(".", "_")
     }
 
-    private fun getUserBackupDir(context: Context, email: String): File {
+    fun getUserBackupDir(context: Context, email: String): File {
         val key = sanitizeUserKey(email)
         val dir = File(context.filesDir, "google_drive_backups/$key")
         if (!dir.exists()) {
             dir.mkdirs()
         }
         return dir
+    }
+
+    fun cleanExtraBackupFiles(context: Context, email: String) {
+        try {
+            val userDir = getUserBackupDir(context, email)
+            userDir.listFiles()?.forEach { file ->
+                if (file.name != MASTER_BACKUP_FILENAME) {
+                    if (file.isDirectory) file.deleteRecursively() else file.delete()
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     fun generateBackupJson(
@@ -271,77 +284,60 @@ object GoogleDriveBackupService {
     }
 
     /**
-     * Saves or updates a Google Drive backup snapshot for the active Google account.
+     * Saves or overwrites the single Google Drive master backup file for the active Google account.
+     * Overwrites this same single file in place so no extra backup files ever accumulate in Google Drive / storage.
      */
     fun saveBackupToUserDrive(
         context: Context,
         workers: List<LaborWorker>,
         transactions: List<CashTransaction>,
-        profile: UserProfile
-    ): Result<BackupMetadata> {
-        return try {
-            val json = generateBackupJson(workers, transactions, profile)
-            val userDir = getUserBackupDir(context, profile.email)
-
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "drive_backup_${timeStamp}.json"
-            val file = File(userDir, fileName)
-            file.writeText(json)
-
-            // Also maintain a 'latest_drive_backup.json' for instant auto-restore
-            val latestFile = File(userDir, "latest_drive_backup.json")
-            latestFile.writeText(json)
-
-            val displayDate = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date())
-            val sizeKb = (file.length().toDouble() / 1024.0)
-
-            Result.success(
-                BackupMetadata(
-                    fileName = fileName,
-                    dateString = displayDate,
-                    fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
-                    workerCount = workers.size,
-                    transactionCount = transactions.size,
-                    accountEmail = profile.email,
-                    file = file
-                )
-            )
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Saves a safety snapshot before actions like deleting a worker.
-     */
-    fun saveSafetyBackup(
-        context: Context,
-        workers: List<LaborWorker>,
-        transactions: List<CashTransaction>,
         profile: UserProfile,
-        reason: String
+        isManual: Boolean = false
     ): Result<BackupMetadata> {
         return try {
-            val json = generateBackupJson(workers, transactions, profile)
             val userDir = getUserBackupDir(context, profile.email)
+            val masterFile = File(userDir, MASTER_BACKUP_FILENAME)
 
-            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "safety_backup_${timeStamp}.json"
-            val file = File(userDir, fileName)
-            file.writeText(json)
+            // If auto-sync and workers are empty, preserve existing master backup that has workers
+            if (!isManual && workers.isEmpty() && masterFile.exists()) {
+                val existing = parseBackupJson(masterFile.readText()).getOrNull()
+                if (existing != null && existing.totalWorkers > 0) {
+                    val displayDate = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date(masterFile.lastModified()))
+                    val sizeKb = (masterFile.length().toDouble() / 1024.0)
+                    return Result.success(
+                        BackupMetadata(
+                            fileName = "Google Drive Master Backup (.JSON)",
+                            dateString = displayDate,
+                            fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
+                            workerCount = existing.totalWorkers,
+                            transactionCount = existing.totalTransactions,
+                            accountEmail = profile.email,
+                            file = masterFile
+                        )
+                    )
+                }
+            }
+
+            val json = generateBackupJson(workers, transactions, profile)
+
+            // Overwrite single master file in place
+            masterFile.writeText(json)
+
+            // Purge any extraneous legacy snapshot files to keep strictly 1 file in storage
+            cleanExtraBackupFiles(context, profile.email)
 
             val displayDate = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date())
-            val sizeKb = (file.length().toDouble() / 1024.0)
+            val sizeKb = (masterFile.length().toDouble() / 1024.0)
 
             Result.success(
                 BackupMetadata(
-                    fileName = fileName,
+                    fileName = "Google Drive Master Backup (.JSON)",
                     dateString = displayDate,
                     fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
                     workerCount = workers.size,
                     transactionCount = transactions.size,
                     accountEmail = profile.email,
-                    file = file
+                    file = masterFile
                 )
             )
         } catch (e: Exception) {
@@ -350,24 +346,17 @@ object GoogleDriveBackupService {
     }
 
     /**
-     * Checks Google Drive for the latest backup created under this Google account.
+     * Checks Google Drive / local storage for the master backup file.
      */
     fun getLatestBackupForUser(context: Context, email: String): BackupData? {
         return try {
             val userDir = getUserBackupDir(context, email)
-            val latestFile = File(userDir, "latest_drive_backup.json")
-            if (latestFile.exists()) {
-                val json = latestFile.readText()
-                val parsed = parseBackupJson(json)
-                parsed.getOrNull()
+            val masterFile = File(userDir, MASTER_BACKUP_FILENAME)
+
+            if (masterFile.exists()) {
+                parseBackupJson(masterFile.readText()).getOrNull()
             } else {
-                // Check latest timestamped file
-                val files = userDir.listFiles { f -> f.extension == "json" && f.name != "latest_drive_backup.json" }
-                val mostRecent = files?.maxByOrNull { it.lastModified() }
-                if (mostRecent != null) {
-                    val json = mostRecent.readText()
-                    parseBackupJson(json).getOrNull()
-                } else null
+                null
             }
         } catch (e: Exception) {
             null
@@ -376,14 +365,14 @@ object GoogleDriveBackupService {
 
     fun parseBackupUniversal(content: String): Result<BackupData> {
         val trimmed = content.trim()
-        return if (trimmed.startsWith("{")) {
-            parseBackupJson(trimmed)
-        } else if (trimmed.contains("[SECTION_") || trimmed.contains("LABORBOOK") || trimmed.contains("WorkerId,")) {
-            CompactCsvBackupService.parseCompleteBackupCsv(trimmed)
+        val cleanContent = if (trimmed.startsWith("\uFEFF")) trimmed.substring(1) else trimmed
+        return if (cleanContent.startsWith("{")) {
+            parseBackupJson(cleanContent)
+        } else if (cleanContent.contains("[SECTION_") || cleanContent.contains("LABORBOOK") || cleanContent.contains("WorkerId,")) {
+            CompactCsvBackupService.parseCompleteBackupCsv(cleanContent)
         } else {
-            // Try json first, then csv
-            val jsonRes = parseBackupJson(trimmed)
-            if (jsonRes.isSuccess) jsonRes else CompactCsvBackupService.parseCompleteBackupCsv(trimmed)
+            val jsonRes = parseBackupJson(cleanContent)
+            if (jsonRes.isSuccess) jsonRes else CompactCsvBackupService.parseCompleteBackupCsv(cleanContent)
         }
     }
 
@@ -401,46 +390,74 @@ object GoogleDriveBackupService {
     }
 
     /**
-     * Lists all available Google Drive & local backups (both .json and .csv) for this Google account.
+     * Lists the single master Google Drive backup and CSV backup for this account.
+     * Exactly 1 single master file is maintained to save Drive and device storage.
      */
     fun getAvailableBackupsForUser(context: Context, email: String): List<BackupMetadata> {
         val userDir = getUserBackupDir(context, email)
         val csvDir = File(context.filesDir, "csv_backups")
-        
-        val userFiles = if (userDir.exists()) {
-            userDir.listFiles { f -> (f.extension == "json" || f.extension == "csv") && !f.name.startsWith("latest_") }?.toList() ?: emptyList()
-        } else emptyList()
 
-        val csvFiles = if (csvDir.exists()) {
-            csvDir.listFiles { f -> f.extension == "csv" && !f.name.startsWith("latest_") }?.toList() ?: emptyList()
-        } else emptyList()
+        // Clean up any extra/stale files so only 1 master file remains
+        cleanExtraBackupFiles(context, email)
 
-        val allFiles = (userFiles + csvFiles).distinctBy { it.name }
+        val resultList = mutableListOf<BackupMetadata>()
 
-        return allFiles.sortedByDescending { it.lastModified() }.map { file ->
-            val dateStr = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date(file.lastModified()))
-            val sizeKb = (file.length().toDouble() / 1024.0)
-            
+        // 1. Single Master Google Drive JSON Backup
+        val masterJsonFile = File(userDir, MASTER_BACKUP_FILENAME)
+        if (masterJsonFile.exists()) {
+            val dateStr = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date(masterJsonFile.lastModified()))
+            val sizeKb = (masterJsonFile.length().toDouble() / 1024.0)
             var wCount = 0
             var tCount = 0
             try {
-                val text = file.readText()
-                val parsed = parseBackupUniversal(text)
+                val parsed = parseBackupJson(masterJsonFile.readText())
                 parsed.onSuccess { data ->
                     wCount = data.totalWorkers
                     tCount = data.totalTransactions
                 }
             } catch (_: Exception) {}
 
-            BackupMetadata(
-                fileName = file.name,
-                dateString = dateStr,
-                fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
-                workerCount = wCount,
-                transactionCount = tCount,
-                accountEmail = email,
-                file = file
+            resultList.add(
+                BackupMetadata(
+                    fileName = "Google Drive Master Backup (.JSON)",
+                    dateString = dateStr,
+                    fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
+                    workerCount = wCount,
+                    transactionCount = tCount,
+                    accountEmail = email,
+                    file = masterJsonFile
+                )
             )
         }
+
+        // 2. Master CSV Backup (if present)
+        val masterCsvFile = File(csvDir, CompactCsvBackupService.MASTER_CSV_FILENAME)
+        if (masterCsvFile.exists()) {
+            val dateStr = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date(masterCsvFile.lastModified()))
+            val sizeKb = (masterCsvFile.length().toDouble() / 1024.0)
+            var wCount = 0
+            var tCount = 0
+            try {
+                val parsed = CompactCsvBackupService.parseCompleteBackupCsv(masterCsvFile.readText())
+                parsed.onSuccess { data ->
+                    wCount = data.totalWorkers
+                    tCount = data.totalTransactions
+                }
+            } catch (_: Exception) {}
+
+            resultList.add(
+                BackupMetadata(
+                    fileName = "Device Master Backup (.CSV)",
+                    dateString = dateStr,
+                    fileSizeKb = String.format(Locale.US, "%.1f", sizeKb).toDoubleOrNull() ?: 1.0,
+                    workerCount = wCount,
+                    transactionCount = tCount,
+                    accountEmail = email,
+                    file = masterCsvFile
+                )
+            )
+        }
+
+        return resultList
     }
 }

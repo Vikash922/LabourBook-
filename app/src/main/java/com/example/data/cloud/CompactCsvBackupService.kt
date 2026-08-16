@@ -1,8 +1,13 @@
 package com.example.data.cloud
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Log
 import androidx.core.content.FileProvider
 import com.example.data.model.AttendanceStatus
 import com.example.data.model.CashTransaction
@@ -12,13 +17,18 @@ import com.example.data.model.PaymentMethod
 import com.example.data.model.TransactionType
 import com.example.data.model.UserProfile
 import java.io.File
-import java.io.InputStream
+import java.io.FileOutputStream
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
 object CompactCsvBackupService {
+
+    private const val TAG = "CompactCsvBackup"
+    const val MASTER_CSV_FILENAME = "laborbook_master_backup.csv"
+    const val DEVICE_DOWNLOAD_FILENAME = "Laborbook_Complete_Backup.csv"
 
     private fun escapeCsv(value: String): String {
         var str = value.replace("\r", " ").replace("\n", " ")
@@ -69,8 +79,6 @@ object CompactCsvBackupService {
      * 2. All Labor Workers (Names, phone, daily rate, skills)
      * 3. Complete Attendance Logs (Present, Absent, Overtime, Half-day, Advances, Notes across all dates)
      * 4. Cash Book Transactions
-     * 
-     * Storage footprint: ~2 KB to 5 KB (Minimal data & storage charge)
      */
     fun generateCompleteBackupCsv(
         workers: List<LaborWorker>,
@@ -101,14 +109,12 @@ object CompactCsvBackupService {
         // SECTION 3: DAILY ATTENDANCE & LABOUR WAGE DETAILS
         sb.append("[SECTION_ATTENDANCE_LOGS]\n")
         sb.append("WorkerId,WorkerName,FullDate,DayNumber,DayOfWeek,Status,OvertimeHours,AdvanceAmount,Note\n")
-        var attendanceCount = 0
         for (w in workers) {
             for ((dateKey, att) in w.attendance) {
                 val fullDate = if (att.fullDate.isNotBlank()) att.fullDate else dateKey
                 val statusStr = att.status.name
                 val noteClean = att.note.replace("\n", " ").replace("\r", " ")
                 sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(fullDate)},${att.dayNumber},${escapeCsv(att.dayOfWeek)},${escapeCsv(statusStr)},${att.overtimeHours},${att.advanceAmount},${escapeCsv(noteClean)}\n")
-                attendanceCount++
             }
         }
         sb.append("\n")
@@ -127,8 +133,10 @@ object CompactCsvBackupService {
     /**
      * Parses a complete .CSV backup file and returns all workers, attendance records, transactions, and profile.
      */
-    fun parseCompleteBackupCsv(csvContent: String): Result<BackupData> {
+    fun parseCompleteBackupCsv(rawContent: String): Result<BackupData> {
         return try {
+            // Strip potential UTF-8 BOM
+            val csvContent = if (rawContent.startsWith("\uFEFF")) rawContent.substring(1) else rawContent
             val lines = csvContent.lines()
             var currentSection = ""
             var backupDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
@@ -294,7 +302,8 @@ object CompactCsvBackupService {
     }
 
     /**
-     * Saves the complete backup to a .csv file in the app storage and returns the File.
+     * Saves the complete backup to a single master .csv file (rewriting previous backup).
+     * Cleans up older legacy timestamped backup files to prevent multiple accumulating files.
      */
     fun saveBackupToCsvFile(
         context: Context,
@@ -306,42 +315,111 @@ object CompactCsvBackupService {
         val dir = File(context.filesDir, "csv_backups")
         if (!dir.exists()) dir.mkdirs()
 
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val file = File(dir, "laborbook_full_backup_${timeStamp}.csv")
-        file.writeText(csvContent)
+        // Clean up legacy timestamped files so only one master file remains
+        dir.listFiles()?.forEach { oldFile ->
+            if (oldFile.name != MASTER_CSV_FILENAME && oldFile.name != "latest_backup.csv") {
+                try { oldFile.delete() } catch (_: Exception) {}
+            }
+        }
 
-        // Also write latest snapshot
+        val masterFile = File(dir, MASTER_CSV_FILENAME)
+        masterFile.writeText(csvContent)
+
+        // Also update latest_backup.csv alias
         val latest = File(dir, "latest_backup.csv")
         latest.writeText(csvContent)
 
-        return file
+        return masterFile
     }
 
     /**
-     * Exports and shares the full .csv backup file via Android Share Intent
-     * (can be shared to WhatsApp, Google Drive, Email, or File Manager).
+     * Saves the CSV backup directly into the user device's storage (Downloads folder).
+     * Overwrites any previous backup file on the device so user has a single, up-to-date backup.
+     */
+    fun saveBackupCsvToDeviceDownloads(
+        context: Context,
+        workers: List<LaborWorker>,
+        transactions: List<CashTransaction>,
+        profile: UserProfile
+    ): Result<String> {
+        return try {
+            val csvContent = generateCompleteBackupCsv(workers, transactions, profile)
+            val fileName = DEVICE_DOWNLOAD_FILENAME
+
+            var savedPath = "Downloads/$fileName"
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                // Check if existing file exists and update or replace it
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+
+                val uri: Uri? = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    resolver.openOutputStream(uri, "wt")?.use { os ->
+                        os.write(csvContent.toByteArray(Charsets.UTF_8))
+                        os.flush()
+                    }
+                    savedPath = "Downloads/$fileName"
+                } else {
+                    // Fallback to external files dir
+                    val fallbackFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir, fileName)
+                    fallbackFile.writeText(csvContent)
+                    savedPath = fallbackFile.absolutePath
+                }
+            } else {
+                // Pre-Android 10
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                val targetFile = File(downloadsDir, fileName)
+                targetFile.writeText(csvContent)
+                savedPath = targetFile.absolutePath
+            }
+
+            // Also keep internal master file in sync
+            saveBackupToCsvFile(context, workers, transactions, profile)
+
+            val totalAtt = workers.sumOf { it.attendance.size }
+            val msg = "CSV backup saved directly to device ($savedPath).\nOverwrote previous file with ${workers.size} workers, $totalAtt attendance logs & ${transactions.size} cash records."
+            Log.i(TAG, msg)
+            Result.success(msg)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving CSV to device downloads: ${e.message}", e)
+            // Fallback: save to internal app storage
+            try {
+                val file = saveBackupToCsvFile(context, workers, transactions, profile)
+                Result.success("Saved to app storage: ${file.name} (overwriting previous backup).")
+            } catch (ex: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Exports and shares the full .csv backup file via Android Share Intent.
+     * Uses FileProvider with read permissions so WhatsApp, Google Drive, Email, etc., can receive it cleanly.
      */
     fun shareBackupCsvFile(
         context: Context,
         workers: List<LaborWorker>,
         transactions: List<CashTransaction>,
         profile: UserProfile
-    ) {
-        try {
+    ): Result<Boolean> {
+        return try {
             val file = saveBackupToCsvFile(context, workers, transactions, profile)
             val sizeKb = String.format(Locale.US, "%.1f", file.length().toDouble() / 1024.0)
 
-            val uri: Uri = try {
-                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-            } catch (e: Exception) {
-                Uri.fromFile(file)
-            }
+            val authority = "${context.packageName}.fileprovider"
+            val uri: Uri = FileProvider.getUriForFile(context, authority, file)
 
+            val totalAtt = workers.sumOf { it.attendance.size }
             val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/comma-separated-values"
+                type = "text/csv"
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_SUBJECT, "Laborbook Complete App Backup (${profile.businessName})")
-                val totalAtt = workers.sumOf { it.attendance.size }
                 putExtra(
                     Intent.EXTRA_TEXT,
                     "📦 Laborbook Complete App Data Backup (.CSV)\n" +
@@ -349,7 +427,7 @@ object CompactCsvBackupService {
                     "• Workers: ${workers.size} Staff Members\n" +
                     "• Attendance Days Logged: $totalAtt records\n" +
                     "• Cash Transactions: ${transactions.size} records\n" +
-                    "• Backup Size: $sizeKb KB (Ultra-lightweight storage)\n\n" +
+                    "• Master File: ${file.name} ($sizeKb KB)\n\n" +
                     "Import this .csv file into Laborbook anytime to restore 100% of your labor and cash data."
                 )
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -358,9 +436,12 @@ object CompactCsvBackupService {
 
             val chooser = Intent.createChooser(sendIntent, "Share Laborbook Full Backup (.CSV)")
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             context.startActivity(chooser)
+            Result.success(true)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Failed to share CSV backup: ${e.message}", e)
+            Result.failure(e)
         }
     }
 }
