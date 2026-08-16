@@ -3,8 +3,11 @@ package com.example.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import android.provider.ContactsContract
+import android.util.Log
 import com.example.data.cloud.BackupData
+import com.example.data.cloud.CloudBackupRecord
 import com.example.data.cloud.GoogleDriveBackupService
+import com.example.data.cloud.GoogleDriveCloudService
 import com.example.data.model.AttendanceStatus
 import com.example.data.model.CashTransaction
 import com.example.data.model.DailyAttendance
@@ -21,6 +24,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class LaborRepository(private val context: Context? = null) {
@@ -40,6 +46,12 @@ class LaborRepository(private val context: Context? = null) {
 
     private val _selectedMonth = MutableStateFlow("Aug 2026")
     val selectedMonth: StateFlow<String> = _selectedMonth.asStateFlow()
+
+    private val _lastBackupStatus = MutableStateFlow("Last backup: Never")
+    val lastBackupStatus: StateFlow<String> = _lastBackupStatus.asStateFlow()
+
+    private val _isCloudSyncing = MutableStateFlow(false)
+    val isCloudSyncing: StateFlow<Boolean> = _isCloudSyncing.asStateFlow()
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
@@ -95,6 +107,7 @@ class LaborRepository(private val context: Context? = null) {
             lastDriveBackupFile = lastDriveFile
         )
         _userProfile.value = profile
+        _lastBackupStatus.value = if (lastDriveTime != "Never") "Last backup: $lastDriveTime" else "Last backup: Never"
 
         if (isLoggedIn && email.isNotBlank()) {
             loadUserDataForAccount(email)
@@ -105,13 +118,12 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Loads data specific to this Google account. Automatically checks Google Drive for existing backups.
+     * Loads data specific to this Google account. Automatically checks Google Drive & Cloud for existing backups.
      */
     private fun loadUserDataForAccount(email: String) {
-        if (context == null) return
         var dataLoaded = false
 
-        // 1. Try to load from user's local persistent database
+        // 1. Try to load from user's local persistent cache
         val dataFile = getUserDataFile(email)
         if (dataFile != null && dataFile.exists()) {
             try {
@@ -127,22 +139,28 @@ class LaborRepository(private val context: Context? = null) {
             }
         }
 
-        // 2. Automatic Restore from Google Drive:
-        // If local data is missing or empty, automatically check Google Drive for previous backups associated with this account
+        // 2. Automatic Restore from Google Drive Cloud:
+        // If local data is missing or empty (e.g. fresh installation / Clear App Data), fetch from Google Drive & Firestore
         if (!dataLoaded || (_workers.value.isEmpty() && _transactions.value.isEmpty())) {
-            val driveBackup = GoogleDriveBackupService.getLatestBackupForUser(context, email)
-            if (driveBackup != null && (driveBackup.workers.isNotEmpty() || driveBackup.transactions.isNotEmpty())) {
-                _workers.value = driveBackup.workers
-                _transactions.value = driveBackup.transactions
-                if (driveBackup.userProfile != null) {
-                    _userProfile.value = _userProfile.value.copy(
-                        businessName = driveBackup.userProfile.businessName.ifBlank { _userProfile.value.businessName },
-                        name = driveBackup.userProfile.name.ifBlank { _userProfile.value.name },
-                        lastDriveBackupTime = driveBackup.backupTimestamp
-                    )
-                    persistProfile()
+            _lastBackupStatus.value = "Restoring backup from Google Drive..."
+            repositoryScope.launch {
+                val cloudResult = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, email)
+                cloudResult.onSuccess { backupData ->
+                    _workers.value = backupData.workers
+                    _transactions.value = backupData.transactions
+                    if (backupData.userProfile != null) {
+                        _userProfile.value = _userProfile.value.copy(
+                            businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                            name = backupData.userProfile.name.ifBlank { _userProfile.value.name },
+                            lastDriveBackupTime = backupData.backupTimestamp
+                        )
+                        persistProfile()
+                    }
+                    _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
+                    persistLocalData(syncToCloud = false)
+                }.onFailure {
+                    _lastBackupStatus.value = "No cloud backup found"
                 }
-                persistLocalData()
             }
         }
     }
@@ -165,10 +183,9 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Persists local data to the active user's local JSON storage.
+     * Persists local data to the active user's local JSON storage and triggers continuous background sync.
      */
-    private fun persistLocalData() {
-        if (context == null) return
+    private fun persistLocalData(syncToCloud: Boolean = true) {
         val currentEmail = _userProfile.value.email
         if (currentEmail.isBlank()) return
 
@@ -183,28 +200,80 @@ class LaborRepository(private val context: Context? = null) {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        if (syncToCloud && _userProfile.value.isLoggedIn) {
+            repositoryScope.launch {
+                try {
+                    GoogleDriveCloudService.uploadBackupToCloud(
+                        context = context,
+                        workers = _workers.value,
+                        transactions = _transactions.value,
+                        profile = _userProfile.value,
+                        reason = "Continuous Auto-Sync"
+                    )
+                } catch (e: Exception) {
+                    Log.w("GoogleDriveBackup", "Background auto-sync: ${e.message}")
+                }
+            }
+        }
     }
 
     /**
-     * Explicitly triggers a Google Drive backup snapshot for this user.
+     * Explicitly triggers a Google Drive backup upload for this user.
      */
-    suspend fun createDriveBackup(): Result<com.example.data.cloud.BackupMetadata> {
-        if (context == null) return Result.failure(Exception("Context is null"))
+    suspend fun createDriveBackup(): Result<CloudBackupRecord> {
         val currentEmail = _userProfile.value.email
-        if (currentEmail.isBlank()) return Result.failure(Exception("No Google account linked"))
+        if (currentEmail.isBlank()) {
+            _lastBackupStatus.value = "Backup failed: No Google account"
+            return Result.failure(Exception("No Google account linked"))
+        }
 
-        val res = GoogleDriveBackupService.saveBackupToUserDrive(
+        _isCloudSyncing.value = true
+        _lastBackupStatus.value = "Backing up to Google Drive..."
+
+        val res = GoogleDriveCloudService.uploadBackupToCloud(
             context = context,
             workers = _workers.value,
             transactions = _transactions.value,
-            profile = _userProfile.value
+            profile = _userProfile.value,
+            reason = "Manual Backup Now"
         )
-        res.onSuccess { meta ->
+        _isCloudSyncing.value = false
+
+        res.onSuccess { record ->
             _userProfile.value = _userProfile.value.copy(
-                lastDriveBackupTime = meta.dateString,
-                lastDriveBackupFile = meta.fileName
+                lastDriveBackupTime = record.backupTimestamp,
+                lastDriveBackupFile = record.driveFileId
             )
+            _lastBackupStatus.value = "Last backup: ${record.backupTimestamp} • Backup successful"
             persistProfile()
+        }.onFailure { err ->
+            _lastBackupStatus.value = "Backup failed: ${err.message}"
+        }
+        return res
+    }
+
+    /**
+     * Explicitly triggers a download and restore from Google Drive & Cloud.
+     */
+    suspend fun restoreFromCloud(): Result<BackupData> {
+        val currentEmail = _userProfile.value.email
+        if (currentEmail.isBlank()) {
+            _lastBackupStatus.value = "Restore failed: No account"
+            return Result.failure(Exception("No Google account linked"))
+        }
+
+        _isCloudSyncing.value = true
+        _lastBackupStatus.value = "Restoring backup..."
+
+        val res = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, currentEmail)
+        _isCloudSyncing.value = false
+
+        res.onSuccess { backupData ->
+            restoreData(backupData)
+            _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
+        }.onFailure { err ->
+            _lastBackupStatus.value = if (err.message?.contains("No cloud backup found") == true) "No cloud backup found" else "Backup failed: ${err.message}"
         }
         return res
     }
@@ -213,7 +282,7 @@ class LaborRepository(private val context: Context? = null) {
      * Switches the active session to a verified Google Account.
      * Automatically queries Google Drive to restore any previous backup for that account.
      */
-    fun loginWithGoogleAccount(name: String, email: String) {
+    fun loginWithGoogleAccount(name: String, email: String, onComplete: ((Boolean, String) -> Unit)? = null) {
         val verifiedEmail = email.trim().lowercase()
         val verifiedName = if (name.isNotBlank()) name.trim() else "Google User"
 
@@ -225,8 +294,50 @@ class LaborRepository(private val context: Context? = null) {
         )
         persistProfile()
 
-        // Switch to this user's data and auto-restore from Google Drive
-        loadUserDataForAccount(verifiedEmail)
+        _lastBackupStatus.value = "Restoring backup..."
+
+        repositoryScope.launch {
+            val cloudRes = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, verifiedEmail)
+            cloudRes.onSuccess { backupData ->
+                _workers.value = backupData.workers
+                _transactions.value = backupData.transactions
+                if (backupData.userProfile != null) {
+                    _userProfile.value = _userProfile.value.copy(
+                        businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                        name = backupData.userProfile.name.ifBlank { verifiedName },
+                        lastDriveBackupTime = backupData.backupTimestamp
+                    )
+                    persistProfile()
+                }
+                persistLocalData(syncToCloud = false)
+                _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
+                onComplete?.invoke(true, "Cloud backup restored: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
+            }.onFailure { err ->
+                // Check if local cache has anything
+                val dataFile = getUserDataFile(verifiedEmail)
+                var localLoaded = false
+                if (dataFile != null && dataFile.exists()) {
+                    try {
+                        val json = dataFile.readText()
+                        val result = GoogleDriveBackupService.parseBackupJson(json)
+                        result.onSuccess { data ->
+                            _workers.value = data.workers
+                            _transactions.value = data.transactions
+                            localLoaded = true
+                        }
+                    } catch (_: Exception) {}
+                }
+                if (!localLoaded) {
+                    _workers.value = emptyList()
+                    _transactions.value = emptyList()
+                    _lastBackupStatus.value = "No cloud backup found"
+                    onComplete?.invoke(false, "No cloud backup found for $verifiedEmail")
+                } else {
+                    _lastBackupStatus.value = "Loaded local cache"
+                    onComplete?.invoke(true, "Signed in successfully.")
+                }
+            }
+        }
     }
 
     /**
@@ -234,19 +345,15 @@ class LaborRepository(private val context: Context? = null) {
      */
     suspend fun backupAndLogout(): Result<String> {
         return try {
-            if (context != null && _userProfile.value.email.isNotBlank()) {
-                val backupResult = GoogleDriveBackupService.saveBackupToUserDrive(
+            if (_userProfile.value.email.isNotBlank()) {
+                _lastBackupStatus.value = "Backing up before logout..."
+                GoogleDriveCloudService.uploadBackupToCloud(
                     context = context,
                     workers = _workers.value,
                     transactions = _transactions.value,
-                    profile = _userProfile.value
+                    profile = _userProfile.value,
+                    reason = "Pre-Logout Sync"
                 )
-                backupResult.onSuccess { meta ->
-                    _userProfile.value = _userProfile.value.copy(
-                        lastDriveBackupTime = meta.dateString,
-                        lastDriveBackupFile = meta.fileName
-                    )
-                }
             }
 
             // Mark session as logged out
@@ -259,6 +366,7 @@ class LaborRepository(private val context: Context? = null) {
             // Reset in-memory states
             _workers.value = emptyList()
             _transactions.value = emptyList()
+            _lastBackupStatus.value = "Logged out"
 
             Result.success("Backup to Google Drive complete. Logged out safely.")
         } catch (e: Exception) {

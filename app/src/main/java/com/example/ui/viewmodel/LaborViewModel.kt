@@ -44,6 +44,8 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     val savedContacts: StateFlow<List<SavedContact>> = repository.savedContacts
     val userProfile: StateFlow<UserProfile> = repository.userProfile
     val selectedMonth: StateFlow<String> = repository.selectedMonth
+    val lastBackupStatus: StateFlow<String> = repository.lastBackupStatus
+    val isCloudSyncing: StateFlow<Boolean> = repository.isCloudSyncing
 
     fun updateSelectedMonth(month: String) {
         repository.updateSelectedMonth(month)
@@ -306,10 +308,47 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Google Authentication Only
-    fun loginWithGoogle(name: String = "Google User", email: String = "jyoti3322114455@gmail.com") {
-        repository.loginWithGoogleAccount(name = name, email = email)
+    fun loginWithGoogle(
+        name: String = "Google User",
+        email: String = "jyoti3322114455@gmail.com",
+        onComplete: ((Boolean, String) -> Unit)? = null
+    ) {
+        repository.loginWithGoogleAccount(name = name, email = email, onComplete = onComplete)
         _currentScreen.value = Screen.LaborHome
         _selectedTabIndex.value = 0
+    }
+
+    /**
+     * Explicitly triggers an immediate Google Drive & Cloud backup upload.
+     */
+    fun backupNow(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val result = repository.createDriveBackup()
+            result.onSuccess { record ->
+                _syncMessage.value = "Backup successful (Drive File ID: ${record.driveFileId.take(12)}...)"
+                onComplete(true, "Backup successful! Uploaded to Google Drive.\nDrive File ID: ${record.driveFileId}\nTime: ${record.backupTimestamp}\nWorkers: ${record.workerCount}, Cash Entries: ${record.transactionCount}")
+            }.onFailure { err ->
+                _syncMessage.value = "Backup failed: ${err.message}"
+                onComplete(false, "Backup failed: ${err.message}")
+            }
+        }
+    }
+
+    /**
+     * Explicitly downloads and restores the latest snapshot from Google Drive & Cloud.
+     */
+    fun restoreFromCloudNow(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val result = repository.restoreFromCloud()
+            result.onSuccess { backupData ->
+                _syncMessage.value = "Cloud restore completed (${backupData.totalWorkers} workers, ${backupData.totalTransactions} transactions)."
+                onComplete(true, "Successfully restored from Google Drive!\nSnapshot Time: ${backupData.backupTimestamp}\nRecovered: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
+            }.onFailure { err ->
+                val msg = if (err.message?.contains("No cloud backup found") == true) "No cloud backup found" else (err.message ?: "Restore failed")
+                _syncMessage.value = msg
+                onComplete(false, msg)
+            }
+        }
     }
 
     /**
@@ -329,21 +368,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     // Google Drive Backup & Restore Methods
     fun backupToGoogleDrive(context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val result = GoogleDriveBackupService.saveBackupToUserDrive(
-                context = context,
-                workers = workers.value,
-                transactions = transactions.value,
-                profile = userProfile.value
-            )
-            result.onSuccess { meta ->
-                repository.updateDriveBackupInfo(meta.dateString, meta.fileName)
-                _syncMessage.value = "Google Drive backup successful (${meta.workerCount} workers, ${meta.transactionCount} transactions)."
-                onComplete(true, "Backup saved to Google Drive successfully for ${meta.accountEmail}!\nFile: ${meta.fileName} (${meta.fileSizeKb} KB)")
-            }.onFailure { err ->
-                onComplete(false, err.message ?: "Failed to create Google Drive backup.")
-            }
-        }
+        backupNow(onComplete)
     }
 
     fun getGoogleDriveBackups(context: android.content.Context): List<BackupMetadata> {

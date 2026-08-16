@@ -76,6 +76,21 @@ fun LoginScreen(
     var customGoogleNameInput by remember { mutableStateOf("") }
     var isSigningIn by remember { mutableStateOf(false) }
 
+    val performSignIn: (String, String) -> Unit = { name, email ->
+        isSigningIn = true
+        viewModel.loginWithGoogle(
+            name = name,
+            email = email
+        ) { success, msg ->
+            isSigningIn = false
+            Toast.makeText(
+                context,
+                msg,
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -169,12 +184,17 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Selected Google Account Badge
+                    // Selected Google Account Badge (Clickable to sign in directly)
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("account_selection_card"),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F4FF)),
+                        border = BorderStroke(1.5.dp, LaborBlue.copy(alpha = 0.35f)),
+                        onClick = {
+                            performSignIn(selectedGoogleName, selectedGoogleEmail)
+                        }
                     ) {
                         Row(
                             modifier = Modifier
@@ -189,23 +209,23 @@ fun LoginScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(40.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF4285F4)),
+                                        .background(LaborBlue),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = selectedGoogleName.take(1).uppercase(),
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
+                                        fontSize = 18.sp
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
                                         text = selectedGoogleName,
-                                        fontSize = 13.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = LaborTextPrimary
                                     )
@@ -213,6 +233,13 @@ fun LoginScreen(
                                         text = selectedGoogleEmail,
                                         fontSize = 11.sp,
                                         color = LaborTextSecondary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Tap to login instantly",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = LaborBlue
                                     )
                                 }
                             }
@@ -243,17 +270,7 @@ fun LoginScreen(
                     // Primary Google Sign-In Action Button
                     Button(
                         onClick = {
-                            isSigningIn = true
-                            viewModel.loginWithGoogle(
-                                name = selectedGoogleName,
-                                email = selectedGoogleEmail
-                            )
-                            Toast.makeText(
-                                context,
-                                "Signed in as $selectedGoogleEmail • Checking Google Drive backup...",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            isSigningIn = false
+                            performSignIn(selectedGoogleName, selectedGoogleEmail)
                         },
                         enabled = !isSigningIn,
                         modifier = Modifier
@@ -404,6 +421,7 @@ fun LoginScreen(
                             selectedGoogleEmail = "jyoti3322114455@gmail.com"
                             selectedGoogleName = "Jyoti Manager"
                             showSwitchAccountDialog = false
+                            performSignIn("Jyoti Manager", "jyoti3322114455@gmail.com")
                         }
                     ) {
                         Row(
@@ -470,14 +488,19 @@ fun LoginScreen(
                                 Toast.makeText(context, "Please enter a valid Google email address", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            selectedGoogleEmail = email.lowercase()
-                            selectedGoogleName = if (customGoogleNameInput.isNotBlank()) customGoogleNameInput.trim() else email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                            val validEmail = email.lowercase()
+                            val validName = if (customGoogleNameInput.isNotBlank()) customGoogleNameInput.trim() else email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                            selectedGoogleEmail = validEmail
+                            selectedGoogleName = validName
+                            showSwitchAccountDialog = false
+                            performSignIn(validName, validEmail)
+                        } else {
+                            showSwitchAccountDialog = false
                         }
-                        showSwitchAccountDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
                 ) {
-                    Text("Select Account", color = Color.White)
+                    Text("Sign In", color = Color.White)
                 }
             },
             dismissButton = {

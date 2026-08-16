@@ -73,6 +73,8 @@ fun LaborHomeScreen(
     val workers by viewModel.filteredWorkers.collectAsState()
     val syncMessage by viewModel.syncMessage.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
+    val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
     val lang = userProfile.language
 
     Scaffold(
@@ -162,6 +164,56 @@ fun LaborHomeScreen(
                                 }
                             }
                         )
+                    }
+                }
+
+                // Cloud Status Bar
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color.White,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDone,
+                                contentDescription = null,
+                                tint = if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) Color(0xFFDC2626) else Color(0xFF16A34A),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = lastBackupStatus,
+                                fontSize = 11.sp,
+                                color = Color(0xFF374151),
+                                maxLines = 1,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                viewModel.backupNow { _, msg ->
+                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "Sync",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LaborBlue
+                            )
+                        }
                     }
                 }
             }

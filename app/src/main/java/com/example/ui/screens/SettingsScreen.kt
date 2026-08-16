@@ -98,6 +98,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
     val syncMessage by viewModel.syncMessage.collectAsState()
+    val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
+    val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
     val lang = userProfile.language
 
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -106,6 +108,7 @@ fun SettingsScreen(
     var showEditNameDialog by remember { mutableStateOf(false) }
     var tempName by remember { mutableStateOf("") }
     var isBackingUp by remember { mutableStateOf(false) }
+    var isRestoring by remember { mutableStateOf(false) }
 
     // File picker launcher to import from Google Drive / Files
     val driveFilePicker = rememberLauncherForActivityResult(
@@ -276,11 +279,180 @@ fun SettingsScreen(
             // Section 2: General & Google Drive Backup
             item {
                 Text(
-                    text = AppStrings.get("general", lang),
+                    text = "Google Drive Cloud Backup",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = LaborBlue,
                     modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+                )
+            }
+
+            // Live Google Drive Cloud Status & Fast Action Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFEFF6FF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudSync,
+                                        contentDescription = null,
+                                        tint = LaborBlue,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Google Account Cloud",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        text = userProfile.email.ifBlank { "jyoti3322114455@gmail.com" },
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+                            if (isCloudSyncing || isBackingUp || isRestoring) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = LaborBlue
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Status Banner
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) {
+                                Color(0xFFFEF2F2)
+                            } else if (lastBackupStatus.contains("successful", ignoreCase = true) || lastBackupStatus.contains("Restored", ignoreCase = true)) {
+                                Color(0xFFF0FDF4)
+                            } else {
+                                Color(0xFFEFF6FF)
+                            },
+                            border = BorderStroke(
+                                1.dp,
+                                if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) Color(0xFFFECACA)
+                                else if (lastBackupStatus.contains("successful", ignoreCase = true) || lastBackupStatus.contains("Restored", ignoreCase = true)) Color(0xFFBBF7D0)
+                                else Color(0xFFBFDBFE)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (lastBackupStatus.contains("failed", ignoreCase = true)) Icons.Default.Policy
+                                    else if (lastBackupStatus.contains("successful", ignoreCase = true) || lastBackupStatus.contains("Restored", ignoreCase = true)) Icons.Default.CloudDone
+                                    else Icons.Default.CloudSync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) Color(0xFFDC2626)
+                                    else if (lastBackupStatus.contains("successful", ignoreCase = true) || lastBackupStatus.contains("Restored", ignoreCase = true)) Color(0xFF16A34A)
+                                    else LaborBlue
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = lastBackupStatus,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) Color(0xFF991B1B)
+                                    else if (lastBackupStatus.contains("successful", ignoreCase = true) || lastBackupStatus.contains("Restored", ignoreCase = true)) Color(0xFF166534)
+                                    else Color(0xFF1E40AF)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Fast Testing Action Buttons: "Backup Now" and "Restore from Cloud"
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    isBackingUp = true
+                                    viewModel.backupNow { success, msg ->
+                                        isBackingUp = false
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                enabled = !isBackingUp && !isRestoring,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .testTag("drive_backup_now_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                            ) {
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (isBackingUp) "Backing up..." else "Backup Now", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    isRestoring = true
+                                    viewModel.restoreFromCloudNow { success, msg ->
+                                        isRestoring = false
+                                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                enabled = !isBackingUp && !isRestoring,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .testTag("drive_restore_cloud_button"),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, LaborBlue),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = LaborBlue)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp), tint = LaborBlue)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (isRestoring) "Restoring..." else "Restore Cloud", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LaborBlue)
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            item {
+                Text(
+                    text = AppStrings.get("general", lang),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LaborBlue,
+                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp)
                 )
             }
 
@@ -642,12 +814,15 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = {
-                                    viewModel.restoreLatestAvailableBackup(context) { success, msg ->
+                                    isRestoring = true
+                                    viewModel.restoreFromCloudNow { success, msg ->
+                                        isRestoring = false
                                         backupRefreshKey++
                                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                         if (success) showDriveBackupSheet = false
                                     }
                                 },
+                                enabled = !isRestoring,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(36.dp),
@@ -655,7 +830,7 @@ fun SettingsScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = LaborBlue),
                                 contentPadding = PaddingValues(horizontal = 6.dp)
                             ) {
-                                Text("Quick Restore", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(if (isRestoring) "Restoring..." else "Restore Cloud", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
