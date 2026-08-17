@@ -1,0 +1,647 @@
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+
+> Task :app:compileDebugKotlin
+e: file:///app/applet/app/src/main/java/com/example/data/cloud/CompactCsvBackupService.kt:296:21 No parameter with name 'accountEmail' found.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:8:31 Unresolved reference 'CloudBackupRecord'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:139:49 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:139:79 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:140:44 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:141:49 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:142:31 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:144:40 Argument type mismatch: actual type is 'uninferred C (of fun <C : CharSequence, R, R> C.ifBlank)', but 'String' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:144:50 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:144:75 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:145:32 Argument type mismatch: actual type is 'uninferred C (of fun <C : CharSequence, R, R> C.ifBlank)', but 'String' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:145:42 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:145:59 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:146:57 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:149:69 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:149:100 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:159:35 Unresolved reference 'GoogleDriveCloudService'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:160:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:160:41 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:161:49 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:162:54 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:163:36 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:165:44 Argument type mismatch: actual type is 'uninferred C (of fun <C : CharSequence, R, R> C.ifBlank)', but 'String' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:165:55 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:165:80 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:166:36 Argument type mismatch: actual type is 'uninferred C (of fun <C : CharSequence, R, R> C.ifBlank)', but 'String' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:166:47 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:166:64 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:167:62 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:171:74 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:171:115 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:173:19 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:173:19 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:217:37 Unresolved reference 'json'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:233:25 'val' cannot be reassigned.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:233:42 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:234:25 'val' cannot be reassigned.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:234:35 Assignment type mismatch: actual type is 'List<LaborWorker>', but 'StateFlow<List<LaborWorker>>' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:234:49 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:235:25 'val' cannot be reassigned.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:235:40 Assignment type mismatch: actual type is 'List<CashTransaction>', but 'StateFlow<List<CashTransaction>>' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:235:59 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:236:25 Unresolved reference 'profile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:236:49 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:237:25 Unresolved reference 'reason'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:238:21 Syntax error: Expecting an element.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:264:37 Unresolved reference 'json'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:275:68 Unresolved reference 'CloudBackupRecord'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:275:103 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:275:134 Unresolved reference 'CloudBackupRecord'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:277:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:277:24 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:277:31 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:277:33 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:26 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:33 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:35 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:36 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:278:65 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:280:63 Suspend function 'suspend fun syncDataToCloud(profile: UserProfile, workers: List<LaborWorker>, transactions: List<CashTransaction>): Result<String>' can only be called from a coroutine or another suspend function.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:281:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:281:21 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:281:23 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:281:30 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:282:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:282:21 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:282:23 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:282:31 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:282:37 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:283:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:283:26 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:283:28 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:283:41 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:283:47 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:284:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:284:21 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:284:23 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:284:35 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:284:41 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:285:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:285:20 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:285:22 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:285:23 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:285:40 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:286:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:287:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:287:24 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:287:31 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:287:33 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:12 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:13 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:23 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:23 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:25 Unresolved reference 'record'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:289:32 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:291:39 Unresolved reference 'record'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:292:39 Unresolved reference 'record'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:294:55 Unresolved reference 'record'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:10 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:11 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:21 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:21 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:23 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:296:27 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:297:57 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:299:9 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:299:16 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:307:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:307:24 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:307:31 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:307:33 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:26 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:33 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:35 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:36 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:308:55 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:310:63 Suspend function 'suspend fun downloadDataFromCloud(): Result<BackupData>' can only be called from a coroutine or another suspend function.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:311:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:311:24 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:311:31 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:311:33 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:12 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:13 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:23 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:23 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:25 Unresolved reference 'backupData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:313:36 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:314:25 Unresolved reference 'backupData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:315:13 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:315:55 Unresolved reference 'backupData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:315:96 Unresolved reference 'backupData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:10 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:11 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:21 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:21 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:23 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:316:27 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:317:13 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:317:43 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:317:146 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:319:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:319:16 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:320:5 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:335:63 Argument type mismatch: actual type is 'String', but 'K (of fun <K> WHEN_CALL)' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:335:88 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:335:88 Argument type mismatch: actual type is 'uninferred C (of fun <C : CharSequence, R, R> C.ifBlank)', but 'K (of fun <K> WHEN_CALL)' was expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:335:120 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:336:74 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:338:9 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:338:30 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:346:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:348:9 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:350:9 Unresolved reference 'repositoryScope'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:358:25 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:359:25 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:361:29 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:361:50 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:362:94 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:366:29 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:368:25 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:370:25 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:380:37 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:381:37 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:381:85 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:382:57 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:382:87 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:383:25 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:383:52 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:384:25 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:384:57 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:385:39 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:386:29 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:386:50 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:387:58 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:387:83 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:387:93 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:388:50 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:388:67 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:389:65 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:391:29 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:394:25 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:394:87 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:394:118 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:397:94 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:397:129 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:405:21 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:405:38 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:405:38 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:406:21 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:406:43 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:406:43 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:407:21 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:428:19 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:431:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:431:29 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:432:49 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:432:79 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:433:17 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:433:44 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:434:17 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:434:49 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:435:31 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:436:21 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:436:42 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:437:50 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:437:75 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:437:85 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:438:57 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:440:21 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:442:17 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:443:102 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:443:140 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:451:21 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:452:21 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:453:21 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:467:17 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:468:17 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:469:77 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:469:97 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:469:113 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:470:21 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:470:21 Variable expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:470:31 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:470:38 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:471:21 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:471:31 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:471:45 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:472:21 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:472:36 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:472:55 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:473:21 Unresolved reference 'profile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:473:31 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:473:49 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:474:21 Unresolved reference 'reason'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:475:17 Syntax error: Expecting an element.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:479:13 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:479:34 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:483:13 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:485:17 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:486:67 Function invocation 'context(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:490:13 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:490:30 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:490:30 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:491:13 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:491:35 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:491:35 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:492:13 Unresolved reference '_lastBackupStatus'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:496:13 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:496:34 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:500:13 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:501:13 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:501:30 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:501:30 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:502:13 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:502:35 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:502:35 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:508:9 Unresolved reference 'repositoryScope'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:550:23 Unresolved reference 'TAG'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:552:23 Unresolved reference 'TAG'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:555:13 Unresolved reference '_savedContacts'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:560:9 Unresolved reference '_selectedMonth'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:570:29 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:582:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:582:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:583:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:588:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:588:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:589:17 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:589:49 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:591:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:595:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:595:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:595:47 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:596:24 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:597:24 Unresolved reference 'copy'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:602:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:606:9 Unresolved reference 'autoSyncJob'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:607:30 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:607:52 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:608:9 Unresolved reference '_lastDeletedWorker'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:610:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:610:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:610:50 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:612:9 Unresolved reference 'persistLocalWorkingStateOnly'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:616:22 Unresolved reference '_lastDeletedWorker'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:617:30 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:617:51 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:618:13 Unresolved reference 'not' for operator '!'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:619:13 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:619:30 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:620:13 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:622:9 Unresolved reference '_lastDeletedWorker'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:631:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:631:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:631:47 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:632:24 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:633:41 Unresolved reference 'attendance'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:633:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:635:47 Unresolved reference 'status'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:636:88 Unresolved reference 'overtimeHours'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:636:138 Unresolved reference 'overtimeHours'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:644:47 Unresolved reference 'advanceAmount'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:645:38 Unresolved reference 'note'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:647:24 Unresolved reference 'copy'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:652:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:660:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:660:26 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:660:47 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:661:24 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:662:41 Unresolved reference 'attendance'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:662:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:664:47 Unresolved reference 'status'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:676:24 Unresolved reference 'copy'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:681:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:701:9 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:701:47 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:702:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:707:9 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:707:31 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:708:17 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:708:59 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:710:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:714:9 Unresolved reference 'autoSyncJob'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:715:9 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:715:31 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:715:60 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:716:9 Unresolved reference 'persistLocalWorkingStateOnly'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:720:9 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:721:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:725:9 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:725:30 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:726:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:730:9 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:730:30 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:731:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:735:9 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:735:30 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:739:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:743:9 Unresolved reference '_lastDeletedWorker'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:744:9 Unresolved reference '_workers'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:745:9 Unresolved reference '_transactions'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:747:13 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:747:34 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:748:62 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:749:78 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:750:66 Unresolved reference '_userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:754:9 Unresolved reference 'persistProfile'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:755:9 Unresolved reference 'persistLocalData'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:759:9 Unresolved reference '_selectedMonth'.
+e: file:///app/applet/app/src/main/java/com/example/data/repository/LaborRepository.kt:761:1 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:219:51 Unresolved reference 'shareBatchRoster'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:286:51 Unresolved reference 'shareCashBookReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:359:47 Unresolved reference 'saveCsvBackupToDevice'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:359:80 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:359:89 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:360:119 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/BatchPdfHubScreen.kt:386:55 Unresolved reference 'exportAndShareBackupCsv'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/CashBookReportScreen.kt:106:47 Unresolved reference 'shareCashBookReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/CashBookReportScreen.kt:133:47 Unresolved reference 'shareCashBookReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/CashBookReportScreen.kt:158:47 Unresolved reference 'shareCashBookReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/LaborDetailScreen.kt:193:39 Unresolved reference 'shareWorkerReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/LaborHomeScreen.kt:88:31 Unresolved reference 'shareBatchRoster'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/LaborReportScreen.kt:118:47 Unresolved reference 'shareWorkerReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/LaborReportScreen.kt:145:47 Unresolved reference 'shareWorkerReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/LaborReportScreen.kt:170:47 Unresolved reference 'shareWorkerReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:124:23 Unresolved reference 'restoreFromGoogleDriveUri'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:124:65 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:124:74 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:125:65 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:588:39 Unresolved reference 'restoreFromLocalBackup'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:588:70 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:588:79 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:589:81 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:612:32 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:613:23 Unresolved reference 'getGoogleDriveBackups'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:692:47 Unresolved reference 'backupToGoogleDrive'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:692:78 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:692:87 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:695:90 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:729:47 Unresolved reference 'restoreFromCloudNow'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:729:69 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:729:78 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:732:90 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:756:47 Unresolved reference 'exportAndShareBackupCsv'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:784:65 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:814:48 Unresolved reference 'fileName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:852:59 Unresolved reference 'dateString'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:858:62 Unresolved reference 'workerCount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:858:94 Unresolved reference 'transactionCount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:861:64 Unresolved reference 'workerCount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:866:78 Assignment type mismatch: actual type is 'Int', but 'BackupMetadata?' was expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:926:35 Unresolved reference 'logoutWithDriveBackup'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:926:59 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:926:68 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:929:78 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1130:35 Unresolved reference 'saveCsvBackupToDevice'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1130:68 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1130:77 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1131:77 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1162:35 Unresolved reference 'exportAndShareBackupCsv'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1162:70 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1162:79 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1163:33 Unresolved reference 'not' for operator '!'.
+e: file:///app/applet/app/src/main/java/com/example/ui/screens/SettingsScreen.kt:1164:81 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:9:31 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:52:20 Unresolved reference 'updateSelectedMonth'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:56:20 Unresolved reference 'loadDeviceContacts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:94:28 Unresolved reference 'loginWithGoogleAccount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:233:20 Unresolved reference 'addWorker'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:244:20 Unresolved reference 'addWorker'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:254:20 Unresolved reference 'setAttendanceStatus'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:258:20 Unresolved reference 'updateDayDetails'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:262:20 Unresolved reference 'updateWorker'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:268:20 Unresolved reference 'deleteWorker'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:274:35 Unresolved reference 'undoDeleteWorker'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:283:32 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:283:80 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:284:55 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:284:92 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:285:28 Unresolved reference 'restoreData'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:286:63 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:287:80 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:332:24 Unresolved reference 'addTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:343:24 Unresolved reference 'updateTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:349:20 Unresolved reference 'deleteTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:354:20 Unresolved reference 'updateBusinessName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:358:20 Unresolved reference 'updateProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:362:20 Unresolved reference 'setLanguage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:388:20 Unresolved reference 'loginWithGoogleAccount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:451:34 Unresolved reference 'deepScanAndRestoreAllData'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:452:17 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:452:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:455:15 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:455:15 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:466:103 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:466:106 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:466:107 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:466:108 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:17 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:27 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:28 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:32 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:34 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:35 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:79 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:81 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:96 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:98 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:104 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:105 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:116 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:117 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:119 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:125 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:127 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:133 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:134 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:149 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:150 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:152 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:161 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:163 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:169 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:170 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:181 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:182 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:198 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:200 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:206 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:207 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:223 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:224 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:467:225 Syntax error: Expecting member declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:14 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:15 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:25 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:25 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:27 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:468:31 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:469:17 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:469:56 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:470:17 Unresolved reference 'onComplete'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:470:53 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:472:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:473:5 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:114 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:121 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:123 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:124 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:124 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:125 Unresolved reference 'backupData'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:155 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:167 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:168 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:169 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:478:170 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:17 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:27 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:28 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:32 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:34 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:35 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:75 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:77 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:92 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:94 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:104 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:105 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:120 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:121 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:123 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:134 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:136 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:146 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:147 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:159 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:160 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:170 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:172 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:182 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:183 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:200 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:201 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:215 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:479:216 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:13 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:14 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:15 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:25 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:25 Function declaration must have a name.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:27 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:480:31 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:481:31 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:481:117 Unresolved reference 'err'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:482:17 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:483:17 Unresolved reference 'onComplete'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:485:9 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:486:5 Syntax error: Expecting a top level declaration.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:493:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:494:13 Unresolved reference '_isLoggingOut'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:495:26 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:496:13 Unresolved reference '_isLoggingOut'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:497:13 Unresolved reference '_currentScreen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:498:13 Unresolved reference '_selectedTabIndex'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:507:16 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:507:77 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:511:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:512:26 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:513:20 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:513:32 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:514:17 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:515:17 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:515:61 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:516:17 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:516:85 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:516:121 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:517:70 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:517:109 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:518:15 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:518:15 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:527:23 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:528:28 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:529:23 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:539:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:542:27 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:543:32 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:544:27 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:547:17 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:556:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:560:31 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:561:36 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:562:31 Unresolved reference 'userProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:564:32 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:564:54 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:568:93 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:568:155 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:578:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:593:30 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:594:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:594:36 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:595:21 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:596:21 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:596:65 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:597:21 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:597:65 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:598:74 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:598:113 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:599:19 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:599:19 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:609:9 Unresolved reference 'viewModelScope'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:612:30 Unresolved reference 'GoogleDriveBackupService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:613:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:613:36 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:614:21 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:615:21 Unresolved reference 'repository'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:615:65 Unresolved reference 'backupTimestamp'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:616:21 Unresolved reference '_syncMessage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:616:71 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:616:107 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:617:61 Unresolved reference 'totalWorkers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:617:122 Unresolved reference 'totalTransactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:618:19 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:618:19 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:628:74 Unresolved reference 'selectedMonth'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:629:52 Unresolved reference 'getApplication'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:633:68 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:634:52 Unresolved reference 'getApplication'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:638:72 Unresolved reference 'workers'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:638:87 Unresolved reference 'selectedMonth'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:639:52 Unresolved reference 'getApplication'.
+e: file:///app/applet/app/src/main/java/com/example/ui/viewmodel/LaborViewModel.kt:641:1 Syntax error: Expecting a top level declaration.
+
+> Task :app:compileDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 13s
+9 actionable tasks: 1 executed, 8 up-to-date
+Configuration cache entry reused.

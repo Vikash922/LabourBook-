@@ -115,8 +115,8 @@ fun CashBookScreen(
         }
     }
 
-    val cashInTotal = displayTransactions.filter { it.type == TransactionType.CASH_IN }.sumOf { it.amount }
-    val cashOutTotal = displayTransactions.filter { it.type == TransactionType.CASH_OUT }.sumOf { it.amount }
+    val cashInTotal = remember(displayTransactions) { displayTransactions.filter { it.type == TransactionType.CASH_IN }.sumOf { it.amount } }
+    val cashOutTotal = remember(displayTransactions) { displayTransactions.filter { it.type == TransactionType.CASH_OUT }.sumOf { it.amount } }
     val balance = cashInTotal - cashOutTotal
 
     val monthsList = listOf(
@@ -542,75 +542,14 @@ fun CashBookScreen(
         }
 
         // Calendar Month Selection Dialog
+        // Calendar Month Selection Dialog
         if (showMonthDialog) {
-            AlertDialog(
-                onDismissRequest = { showMonthDialog = false },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
-                            tint = LaborBlue,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Select Cash Book Month", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    }
-                },
-                text = {
-                    LazyColumn(modifier = Modifier.fillMaxWidth().height(260.dp)) {
-                        items(monthsList) { m ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.updateSelectedMonth(m)
-                                        showMonthDialog = false
-                                    }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = m,
-                                    fontSize = 15.sp,
-                                    fontWeight = if (selectedMonth == m) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selectedMonth == m) LaborBlue else LaborTextPrimary
-                                )
-                                if (selectedMonth == m) {
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFEFF6FF)
-                                    ) {
-                                        Text(
-                                            text = "Active",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = LaborBlue,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            HorizontalDivider(color = Color(0xFFF3F4F6))
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showMonthDialog = false
-                            datePickerDialog.show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
-                    ) {
-                        Text("Pick Custom Month / Date", color = Color.White)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showMonthDialog = false }) {
-                        Text(AppStrings.get("cancel", lang))
-                    }
+            MonthYearSelectionDialog(
+                initialSelection = selectedMonth,
+                onDismiss = { showMonthDialog = false },
+                onConfirm = { newSelection -> 
+                    viewModel.updateSelectedMonth(newSelection)
+                    showMonthDialog = false 
                 }
             )
         }
@@ -644,5 +583,162 @@ fun CashBookScreen(
             }
             null -> {}
         }
+    }
+}
+
+@Composable
+fun MonthYearSelectionDialog(
+    initialSelection: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    // Parse "Aug 2026" or fallback
+    var currentMonth by remember { mutableStateOf("Aug") }
+    var currentYear by remember { mutableStateOf("2026") }
+    
+    androidx.compose.runtime.LaunchedEffect(initialSelection) {
+        if (initialSelection.contains(" ")) {
+            val parts = initialSelection.split(" ")
+            if (parts.size >= 2) {
+                currentMonth = parts[0]
+                currentYear = parts[1]
+            }
+        }
+    }
+
+    var activePicker by remember { mutableStateOf<String?>(null) } // "month" or "year"
+
+    if (activePicker == "month") {
+        AlertDialog(
+            onDismissRequest = { activePicker = null },
+            title = {
+                Text("Select month", fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            },
+            text = {
+                val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                LazyColumn(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                    items(months) { m ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    currentMonth = m
+                                    activePicker = null
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = currentMonth == m,
+                                onClick = {
+                                    currentMonth = m
+                                    activePicker = null
+                                },
+                                colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = LaborBlue)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(m, fontSize = 16.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = { },
+            dismissButton = {
+                TextButton(onClick = { activePicker = null }) { Text("Cancel", color = LaborBlue) }
+            }
+        )
+    } else if (activePicker == "year") {
+        AlertDialog(
+            onDismissRequest = { activePicker = null },
+            title = { Text("Select year", fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) },
+            text = {
+                val years = (2020..2030).map { it.toString() }
+                LazyColumn(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                    items(years) { y ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    currentYear = y
+                                    activePicker = null
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = currentYear == y,
+                                onClick = {
+                                    currentYear = y
+                                    activePicker = null
+                                },
+                                colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = LaborBlue)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(y, fontSize = 16.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { activePicker = null }) { Text("Cancel", color = LaborBlue) } }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = {
+                Text("Select Month & Year", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 18.sp)
+            },
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Month dropdown chip
+                    Surface(
+                        modifier = Modifier.weight(1f).clickable { activePicker = "month" },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.Gray),
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(currentMonth, fontSize = 16.sp)
+                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
+                        }
+                    }
+
+                    // Year dropdown chip
+                    Surface(
+                        modifier = Modifier.weight(1f).clickable { activePicker = "year" },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.Gray),
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(currentYear, fontSize = 16.sp)
+                            Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { onConfirm("$currentMonth $currentYear") },
+                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("Ok", color = Color.White, fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
+            },
+            dismissButton = null
+        )
     }
 }

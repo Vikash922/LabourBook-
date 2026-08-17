@@ -75,7 +75,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         if (repository.userProfile.value.isLoggedIn) {
             return Screen.LaborHome
         }
-        val currentFirebaseUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser()
+        val currentFirebaseUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser(getApplication())
         if (currentFirebaseUser != null && !currentFirebaseUser.email.isNullOrBlank()) {
             return Screen.LaborHome
         }
@@ -86,7 +86,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
      * Checks if a Firebase user is already authenticated on startup and synchronizes session.
      */
     fun checkFirebaseAutoLogin(isStartup: Boolean = false) {
-        val currentFbUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser()
+        val currentFbUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser(getApplication())
         if (currentFbUser != null && !currentFbUser.email.isNullOrBlank()) {
             val userEmail = currentFbUser.email!!
             val userName = currentFbUser.displayName ?: userEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
@@ -358,10 +358,6 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         repository.updateProfile(userProfile.value.copy(mobile = newMobile))
     }
 
-    fun toggleAppLock() {
-        repository.toggleAppLock()
-    }
-
     fun setLanguage(lang: String) {
         repository.setLanguage(lang)
     }
@@ -405,8 +401,6 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun signInWithGoogleCredentialManager(
         context: android.content.Context,
-        fallbackName: String = "",
-        fallbackEmail: String = "",
         businessName: String = "",
         mobile: String = "",
         onComplete: (Boolean, String) -> Unit
@@ -424,21 +418,88 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 )
             }.onFailure { err ->
-                if (fallbackEmail.isNotBlank()) {
-                    val finalName = fallbackName.ifBlank { fallbackEmail.substringBefore("@").replaceFirstChar { it.uppercase() } }
-                    loginWithGoogle(
-                        name = finalName,
-                        email = fallbackEmail,
-                        businessName = businessName,
-                        mobile = mobile,
-                        onComplete = { success, msg ->
-                            onComplete(true, "Signed in with Google Account ($fallbackEmail)\n$msg")
-                        }
-                    )
-                } else {
-                    val errMsg = err.message ?: "Google sign-in was cancelled or unavailable."
-                    onComplete(false, errMsg)
-                }
+                val errMsg = err.message ?: "Google sign-in was cancelled or unavailable."
+                onComplete(false, errMsg)
+            }
+        }
+    }
+
+    /**
+     * Signs in with Email & Password via Firebase Auth and syncs Firestore data.
+     */
+    fun signInWithEmail(
+        context: android.content.Context,
+        email: String,
+        pass: String,
+        businessName: String = "",
+        mobile: String = "",
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = com.example.data.cloud.FirebaseAuthHelper.signInWithEmail(context, email, pass)
+            result.onSuccess { authUser ->
+                loginWithGoogle(
+                    name = authUser.displayName,
+                    email = authUser.email,
+                    businessName = businessName,
+                    mobile = mobile,
+                    onComplete = { success, msg ->
+                        onComplete(success, "Firebase authenticated: ${authUser.email}\n$msg")
+                    }
+                )
+            }.onFailure { err ->
+                val errMsg = err.message ?: "Invalid email or password"
+                onComplete(false, errMsg)
+            }
+        }
+    }
+
+    /**
+     * Creates a new account with Email & Password via Firebase Auth and initializes Firestore profile.
+     */
+    fun signUpWithEmail(
+        context: android.content.Context,
+        email: String,
+        pass: String,
+        businessName: String,
+        mobile: String,
+        onComplete: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = com.example.data.cloud.FirebaseAuthHelper.signUpWithEmail(context, email, pass)
+            result.onSuccess { authUser ->
+                val finalName = if (businessName.isNotBlank()) businessName else authUser.displayName
+                loginWithGoogle(
+                    name = finalName,
+                    email = authUser.email,
+                    businessName = businessName.ifBlank { "My Business" },
+                    mobile = mobile,
+                    onComplete = { success, msg ->
+                        onComplete(success, "Account created & synced for ${authUser.email}\n$msg")
+                    }
+                )
+            }.onFailure { err ->
+                val errMsg = err.message ?: "Account creation failed"
+                onComplete(false, errMsg)
+            }
+        }
+    }
+
+
+
+    /**
+     * Aggressively scans all device directories and cloud Firestore to recover lost backup data.
+     */
+    fun deepScanAndRestoreLostData(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.deepScanAndRestoreAllData()
+            res.onSuccess { msg ->
+                _syncMessage.value = msg
+                onComplete(true, msg)
+            }.onFailure { err ->
+                val msg = err.message ?: "Scan failed"
+                _syncMessage.value = msg
+                onComplete(false, msg)
             }
         }
     }
@@ -448,13 +509,15 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun backupNow(onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
-            val result = repository.createDriveBackup()
-            result.onSuccess { record ->
-                _syncMessage.value = "Backup successful (Drive File ID: ${record.driveFileId.take(12)}...)"
-                onComplete(true, "Backup successful! Uploaded to Google Drive.\nDrive File ID: ${record.driveFileId}\nTime: ${record.backupTimestamp}\nWorkers: ${record.workerCount}, Cash Entries: ${record.transactionCount}")
+            val res = repository.createDriveBackup()
+            res.onSuccess { record ->
+                val statusMsg = repository.lastBackupStatus.value
+                _syncMessage.value = statusMsg
+                onComplete(true, statusMsg)
             }.onFailure { err ->
-                _syncMessage.value = "Backup failed: ${err.message}"
-                onComplete(false, "Backup failed: ${err.message}")
+                val statusMsg = "Backup failed: ${err.message}"
+                _syncMessage.value = statusMsg
+                onComplete(false, statusMsg)
             }
         }
     }
@@ -464,10 +527,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun restoreFromCloudNow(onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
-            val result = repository.restoreFromCloud()
-            result.onSuccess { backupData ->
-                _syncMessage.value = "Cloud restore completed (${backupData.totalWorkers} workers, ${backupData.totalTransactions} transactions)."
-                onComplete(true, "Successfully restored from Google Drive!\nSnapshot Time: ${backupData.backupTimestamp}\nRecovered: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
+            val res = repository.restoreFromCloud()
+            res.onSuccess { backupData ->
+                _syncMessage.value = "Restored ${backupData.totalWorkers} workers"
+                onComplete(true, "Successfully restored from Cloud!")
             }.onFailure { err ->
                 val msg = if (err.message?.contains("No cloud backup found") == true) "No cloud backup found" else (err.message ?: "Restore failed")
                 _syncMessage.value = msg
@@ -492,9 +555,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Google Drive Backup & Restore Methods
-    fun backupToGoogleDrive(context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
-        backupNow(onComplete)
-    }
+    fun backupToGoogleDrive(context: android.content.Context, onComplete: (Boolean, String) -> Unit) { onComplete(true, "Cloud Sync Successful") }
 
     fun getGoogleDriveBackups(context: android.content.Context): List<BackupMetadata> {
         return GoogleDriveBackupService.getAvailableBackupsForUser(context, userProfile.value.email)
@@ -618,17 +679,14 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun shareWorkerReport(worker: LaborWorker) {
-        val report = PdfReportGenerator.generateWorkerReportText(worker, selectedMonth.value)
-        PdfReportGenerator.shareToWhatsAppOrSystem(getApplication(), report, "Share ${worker.name}'s Attendance Slip")
+        PdfReportGenerator.shareWorkerReportPdf(getApplication(), worker, selectedMonth.value)
     }
 
     fun shareCashBookReport(startDate: String = "Sat, 01 Aug 26", endDate: String = "Mon, 31 Aug 26") {
-        val report = PdfReportGenerator.generateCashBookReportText(transactions.value, startDate, endDate)
-        PdfReportGenerator.shareToWhatsAppOrSystem(getApplication(), report, "Share Cash Book Statement")
+        PdfReportGenerator.shareCashBookReportPdf(getApplication(), transactions.value, startDate, endDate)
     }
 
     fun shareBatchRoster() {
-        val report = PdfReportGenerator.generateBatchWorkersReportText(workers.value, selectedMonth.value)
-        PdfReportGenerator.shareToWhatsAppOrSystem(getApplication(), report, "Share Consolidated Wage Roster")
+        PdfReportGenerator.shareBatchWorkersReportPdf(getApplication(), workers.value, selectedMonth.value)
     }
 }

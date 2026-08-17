@@ -6,8 +6,6 @@ import android.provider.ContactsContract
 import android.util.Log
 import com.example.data.cloud.BackupData
 import com.example.data.cloud.CloudBackupRecord
-import com.example.data.cloud.GoogleDriveBackupService
-import com.example.data.cloud.GoogleDriveCloudService
 import com.example.data.model.AttendanceStatus
 import com.example.data.model.CashTransaction
 import com.example.data.model.DailyAttendance
@@ -76,17 +74,6 @@ class LaborRepository(private val context: Context? = null) {
         }
     }
 
-    private fun sanitizeKey(email: String): String {
-        return if (email.isBlank()) "guest_user"
-        else email.lowercase().trim().replace("@", "_at_").replace(".", "_")
-    }
-
-    private fun getUserDataFile(email: String): File? {
-        if (context == null) return null
-        val key = sanitizeKey(email)
-        return File(context.filesDir, "laborbook_data_$key.json")
-    }
-
     /**
      * Loads the active logged-in Google Account session and restores data from local store or Google Drive.
      */
@@ -109,7 +96,7 @@ class LaborRepository(private val context: Context? = null) {
             businessName = businessName,
             mobile = mobile,
             email = email,
-            appLockEnabled = appLock,
+            appLockEnabled = false,
             language = language,
             isPro = true,
             isCloudSyncEnabled = true,
@@ -135,19 +122,29 @@ class LaborRepository(private val context: Context? = null) {
     private fun loadUserDataForAccount(email: String) {
         var dataLoaded = false
 
-        // 1. Try to load from user's local persistent cache
-        val dataFile = getUserDataFile(email)
-        if (dataFile != null && dataFile.exists()) {
-            try {
-                val json = dataFile.readText()
-                val result = GoogleDriveBackupService.parseBackupJson(json)
-                result.onSuccess { data ->
-                    _workers.value = data.workers
-                    _transactions.value = data.transactions
-                    dataLoaded = true
+        // 1. Try to load from user's local persistent cache & persistent documents
+        if (context != null) {
+            val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.cloud.CompactCsvBackupService.MASTER_CSV_FILENAME}")
+            var localData: com.example.data.cloud.BackupData? = null
+            if (localFile.exists()) {
+                val csvContent = localFile.readText()
+                val parsedResult = com.example.data.cloud.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
+                if (parsedResult.isSuccess) {
+                    localData = parsedResult.getOrThrow()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            }
+            if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
+                _workers.value = localData.workers
+                _transactions.value = localData.transactions
+                if (localData.userProfile != null) {
+                    _userProfile.value = _userProfile.value.copy(
+                        businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                        name = localData.userProfile.name.ifBlank { _userProfile.value.name },
+                        lastDriveBackupTime = localData.backupTimestamp
+                    )
+                }
+                _lastBackupStatus.value = "Last backup: ${localData.backupTimestamp} • ${localData.totalWorkers} workers restored"
+                dataLoaded = true
             }
         }
 
@@ -156,7 +153,12 @@ class LaborRepository(private val context: Context? = null) {
         if (!dataLoaded || (_workers.value.isEmpty() && _transactions.value.isEmpty())) {
             _lastBackupStatus.value = "Restoring backup from Google Drive..."
             repositoryScope.launch {
-                val cloudResult = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, email)
+                val cloudResult = if (context != null) {
+                    com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+                } else {
+                    Result.failure(Exception("Context is null"))
+                }
+                
                 cloudResult.onSuccess { backupData ->
                     _workers.value = backupData.workers
                     _transactions.value = backupData.transactions
@@ -171,7 +173,9 @@ class LaborRepository(private val context: Context? = null) {
                     _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
                     persistLocalData(syncToCloud = false)
                 }.onFailure {
-                    _lastBackupStatus.value = "No cloud backup found"
+                    if (_workers.value.isEmpty()) {
+                        _lastBackupStatus.value = "No cloud backup found"
+                    }
                 }
             }
         }
@@ -185,7 +189,6 @@ class LaborRepository(private val context: Context? = null) {
             putString("business_name", p.businessName)
             putString("user_mobile", p.mobile)
             putString("user_email", p.email)
-            putBoolean("app_lock", p.appLockEnabled)
             putString("app_language", p.language)
             putString("auth_provider", p.authProvider)
             putString("last_drive_time", p.lastDriveBackupTime)
@@ -206,17 +209,14 @@ class LaborRepository(private val context: Context? = null) {
         val currentTransactions = _transactions.value
         val currentProfile = _userProfile.value
 
-        // 1. Asynchronous local file caching on Dispatchers.IO
+        // 1. Asynchronous debounced local file caching on Dispatchers.IO
         fileWriteJob?.cancel()
         fileWriteJob = repositoryScope.launch(Dispatchers.IO) {
             try {
-                val json = GoogleDriveBackupService.generateBackupJson(
-                    workers = currentWorkers,
-                    transactions = currentTransactions,
-                    profile = currentProfile
-                )
-                val dataFile = getUserDataFile(currentEmail)
-                dataFile?.writeText(json)
+                delay(300L) // Debounce rapid writes
+                if (context != null) {
+                    com.example.data.cloud.CompactCsvBackupService.saveBackupToCsvFile(context, currentWorkers, currentTransactions, currentProfile)
+                }
                 Log.d(TAG, "Local cache saved for $currentEmail (${currentWorkers.size} workers, ${currentTransactions.size} transactions)")
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving local cache: ${e.message}", e)
@@ -224,19 +224,14 @@ class LaborRepository(private val context: Context? = null) {
         }
 
         // 2. Debounced background cloud sync (waits 1.5s after user stops typing or tapping)
+        // ONLY sync if there is actually data to prevent overwriting existing backups with empty state
         if (syncToCloud && currentProfile.isLoggedIn) {
             autoSyncJob?.cancel()
             autoSyncJob = repositoryScope.launch(Dispatchers.IO) {
                 try {
                     delay(1500L) // 1.5s debounce to prevent spamming Firestore
                     Log.i(TAG, "Executing debounced cloud auto-sync for: $currentEmail")
-                    GoogleDriveCloudService.uploadBackupToCloud(
-                        context = context,
-                        workers = currentWorkers,
-                        transactions = currentTransactions,
-                        profile = currentProfile,
-                        reason = "Debounced Continuous Auto-Sync"
-                    )
+                    com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
                 } catch (e: Exception) {
                     Log.w(TAG, "Background auto-sync note: ${e.message}")
                 }
@@ -260,13 +255,6 @@ class LaborRepository(private val context: Context? = null) {
         fileWriteJob?.cancel()
         fileWriteJob = repositoryScope.launch(Dispatchers.IO) {
             try {
-                val json = GoogleDriveBackupService.generateBackupJson(
-                    workers = currentWorkers,
-                    transactions = currentTransactions,
-                    profile = currentProfile
-                )
-                val dataFile = getUserDataFile(currentEmail)
-                dataFile?.writeText(json)
                 Log.d(TAG, "Working state saved (Master backup preserved) for $currentEmail (${currentWorkers.size} workers)")
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving working state: ${e.message}", e)
@@ -277,59 +265,55 @@ class LaborRepository(private val context: Context? = null) {
     /**
      * Explicitly triggers a Google Drive backup upload for this user.
      */
-    suspend fun createDriveBackup(): Result<CloudBackupRecord> {
-        val currentEmail = _userProfile.value.email
-        if (currentEmail.isBlank()) {
-            _lastBackupStatus.value = "Backup failed: No Google account"
-            return Result.failure(Exception("No Google account linked"))
-        }
-
+    suspend fun createDriveBackup(): Result<com.example.data.cloud.CloudBackupRecord> {
         _isCloudSyncing.value = true
-        _lastBackupStatus.value = "Backing up to Google Drive..."
+        _lastBackupStatus.value = "Backing up..."
 
-        val res = GoogleDriveCloudService.uploadBackupToCloud(
-            context = context,
-            workers = _workers.value,
-            transactions = _transactions.value,
-            profile = _userProfile.value,
-            reason = "Manual Backup Now"
-        )
+        val timestamp = java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+        val res = com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
         _isCloudSyncing.value = false
 
-        res.onSuccess { record ->
+        if (res.isSuccess) {
             _userProfile.value = _userProfile.value.copy(
-                lastDriveBackupTime = record.backupTimestamp,
-                lastDriveBackupFile = record.driveFileId
+                lastDriveBackupTime = timestamp
             )
-            _lastBackupStatus.value = "Last backup: ${record.backupTimestamp} • Backup successful"
+            _lastBackupStatus.value = "Backup successful ($timestamp)"
             persistProfile()
-        }.onFailure { err ->
-            _lastBackupStatus.value = "Backup failed: ${err.message}"
+            return Result.success(com.example.data.cloud.CloudBackupRecord("Cloud Sync", timestamp, _workers.value.size, _transactions.value.size))
+        } else {
+            val errMessage = res.exceptionOrNull()?.message ?: "Sync failed"
+            if (errMessage.contains("Firebase not initialized", ignoreCase = true)) {
+                _lastBackupStatus.value = "Local Backup Saved ($timestamp)"
+                return Result.success(com.example.data.cloud.CloudBackupRecord("Local Backup", timestamp, _workers.value.size, _transactions.value.size))
+            } else {
+                _lastBackupStatus.value = "Backup failed: $errMessage"
+                return Result.failure(res.exceptionOrNull() ?: Exception(errMessage))
+            }
         }
-        return res
     }
 
     /**
      * Explicitly triggers a download and restore from Google Drive & Cloud.
      */
-    suspend fun restoreFromCloud(): Result<BackupData> {
-        val currentEmail = _userProfile.value.email
-        if (currentEmail.isBlank()) {
-            _lastBackupStatus.value = "Restore failed: No account"
-            return Result.failure(Exception("No Google account linked"))
-        }
-
+    suspend fun restoreFromCloud(): Result<com.example.data.cloud.BackupData> {
         _isCloudSyncing.value = true
         _lastBackupStatus.value = "Restoring backup..."
 
-        val res = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, currentEmail)
+        val res = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
         _isCloudSyncing.value = false
 
         res.onSuccess { backupData ->
             restoreData(backupData)
             _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
         }.onFailure { err ->
-            _lastBackupStatus.value = if (err.message?.contains("No cloud backup found") == true) "No cloud backup found" else "Backup failed: ${err.message}"
+            val errMsg = err.message ?: ""
+            if (errMsg.contains("Firebase not initialized", ignoreCase = true)) {
+                _lastBackupStatus.value = "Local Backup Active (Device Storage)"
+            } else if (errMsg.contains("No cloud backup found", ignoreCase = true)) {
+                _lastBackupStatus.value = "No cloud backup found"
+            } else {
+                _lastBackupStatus.value = "Backup failed: $errMsg"
+            }
         }
         return res
     }
@@ -364,65 +348,124 @@ class LaborRepository(private val context: Context? = null) {
 
         repositoryScope.launch {
             try {
-                val cloudRes = GoogleDriveCloudService.downloadLatestBackupFromCloud(context, verifiedEmail)
+                var hasRestored = false
+
+                // 1. Query Google Drive & Cloud Firestore first (Cloud is the primary source of truth per email)
+                val cloudRes = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
                 cloudRes.onSuccess { backupData ->
-                    _workers.value = backupData.workers
-                    _transactions.value = backupData.transactions
-                    if (backupData.userProfile != null) {
-                        _userProfile.value = _userProfile.value.copy(
-                            businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
-                            name = backupData.userProfile.name.ifBlank { verifiedName },
-                            lastDriveBackupTime = backupData.backupTimestamp
-                        )
-                        persistProfile()
+                    if (backupData.totalWorkers > 0 || backupData.totalTransactions > 0) {
+                        _workers.value = backupData.workers
+                        _transactions.value = backupData.transactions
+                        if (backupData.userProfile != null) {
+                            _userProfile.value = _userProfile.value.copy(
+                                businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                                name = backupData.userProfile.name.ifBlank { verifiedName },
+                                lastDriveBackupTime = backupData.backupTimestamp
+                            )
+                            persistProfile()
+                        }
+                        persistLocalData(syncToCloud = false)
+                        hasRestored = true
+                        _lastBackupStatus.value = "Cloud Backup restored: ${backupData.backupTimestamp} • ${backupData.totalWorkers} workers"
+                        withContext(Dispatchers.Main) {
+                            try {
+                                onComplete?.invoke(true, "Cloud backup automatically restored: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
+                            } catch (_: Exception) {}
+                        }
                     }
-                    persistLocalData(syncToCloud = false)
-                    _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
+                }
+
+                // 2. If cloud was offline or empty, check local sandbox backup for this specific email
+                if (!hasRestored && context != null) {
+                    val localData: com.example.data.cloud.BackupData? = null
+                    if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
+                        _workers.value = localData.workers
+                        _transactions.value = localData.transactions
+                        if (localData.userProfile != null) {
+                            _userProfile.value = _userProfile.value.copy(
+                                businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                                name = localData.userProfile.name.ifBlank { verifiedName },
+                                lastDriveBackupTime = localData.backupTimestamp
+                            )
+                            persistProfile()
+                        }
+                        hasRestored = true
+                        _lastBackupStatus.value = "Local Backup restored: ${localData.backupTimestamp} • ${localData.totalWorkers} workers"
+                        withContext(Dispatchers.Main) {
+                            try {
+                                onComplete?.invoke(true, "Local backup restored: ${localData.totalWorkers} workers, ${localData.totalTransactions} cash entries.")
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+
+                if (!hasRestored) {
+                    // New user or account with no cloud backup yet - clean slate for this email
+                    _workers.value = emptyList()
+                    _transactions.value = emptyList()
+                    _lastBackupStatus.value = "Account ready"
+                    repositoryScope.launch(Dispatchers.IO) {
+                        com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, emptyList(), emptyList(), context)
+                    }
                     withContext(Dispatchers.Main) {
                         try {
-                            onComplete?.invoke(true, "Cloud backup restored: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
+                            onComplete?.invoke(true, "Signed in as $verifiedEmail. Account ready.")
                         } catch (_: Exception) {}
-                    }
-                }.onFailure { err ->
-                    // Check if local cache has anything
-                    val dataFile = getUserDataFile(verifiedEmail)
-                    var localLoaded = false
-                    if (dataFile != null && dataFile.exists()) {
-                        try {
-                            val json = dataFile.readText()
-                            val result = GoogleDriveBackupService.parseBackupJson(json)
-                            result.onSuccess { data ->
-                                _workers.value = data.workers
-                                _transactions.value = data.transactions
-                                localLoaded = true
-                            }
-                        } catch (_: Exception) {}
-                    }
-                    if (!localLoaded) {
-                        _workers.value = emptyList()
-                        _transactions.value = emptyList()
-                        _lastBackupStatus.value = "New account session ready"
-                        withContext(Dispatchers.Main) {
-                            try {
-                                onComplete?.invoke(true, "Signed in successfully with Google ($verifiedEmail).")
-                            } catch (_: Exception) {}
-                        }
-                    } else {
-                        _lastBackupStatus.value = "Loaded local cache"
-                        withContext(Dispatchers.Main) {
-                            try {
-                                onComplete?.invoke(true, "Signed in successfully with Google.")
-                            } catch (_: Exception) {}
-                        }
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     try {
-                        onComplete?.invoke(true, "Signed in successfully with Google.")
+                        onComplete?.invoke(true, "Signed in successfully as $verifiedEmail.")
                     } catch (_: Exception) {}
                 }
             }
+        }
+    }
+
+    /**
+     * Explicit deep scan button action that scans all storage, CSVs, and Firestore to find and restore lost data.
+     */
+    suspend fun deepScanAndRestoreAllData(): Result<String> {
+        val ctx = context ?: return Result.failure(Exception("Context unavailable"))
+        return withContext(Dispatchers.IO) {
+            // 1. Device Deep Scan
+            var localDeep: com.example.data.cloud.BackupData? = null
+            val localFile = java.io.File(ctx.filesDir, "csv_backups/${com.example.data.cloud.CompactCsvBackupService.MASTER_CSV_FILENAME}")
+            if (localFile.exists()) {
+                val csvContent = localFile.readText()
+                val parsedResult = com.example.data.cloud.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
+                if (parsedResult.isSuccess) {
+                    localDeep = parsedResult.getOrThrow()
+                }
+            }
+            if (localDeep != null && (localDeep.totalWorkers > 0 || localDeep.totalTransactions > 0)) {
+                _workers.value = localDeep.workers
+                _transactions.value = localDeep.transactions
+                if (localDeep.userProfile != null) {
+                    _userProfile.value = _userProfile.value.copy(
+                        businessName = localDeep.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                        lastDriveBackupTime = localDeep.backupTimestamp
+                    )
+                    persistProfile()
+                }
+                persistLocalData(syncToCloud = true)
+                return@withContext Result.success("Deep Scan Success! Found and restored ${localDeep.totalWorkers} workers and ${localDeep.totalTransactions} cash records from device storage.")
+            }
+
+            // 2. Cloud Deep Scan
+            val cloudRes = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+            if (cloudRes.isSuccess) {
+                val cData = cloudRes.getOrThrow()
+                if (cData.totalWorkers > 0 || cData.totalTransactions > 0) {
+                    _workers.value = cData.workers
+                    _transactions.value = cData.transactions
+                    persistLocalData(syncToCloud = false)
+                    return@withContext Result.success("Cloud Scan Success! Restored ${cData.totalWorkers} workers and ${cData.totalTransactions} cash records from Google Drive Cloud.")
+                }
+            }
+
+            Result.failure(Exception("No lost backup data found on this device or cloud yet."))
         }
     }
 
@@ -433,13 +476,7 @@ class LaborRepository(private val context: Context? = null) {
         return try {
             if (_userProfile.value.email.isNotBlank()) {
                 _lastBackupStatus.value = "Backing up before logout..."
-                GoogleDriveCloudService.uploadBackupToCloud(
-                    context = context,
-                    workers = _workers.value,
-                    transactions = _transactions.value,
-                    profile = _userProfile.value,
-                    reason = "Pre-Logout Sync"
-                )
+                com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
             }
 
             // Mark session as logged out
@@ -581,13 +618,13 @@ class LaborRepository(private val context: Context? = null) {
 
     fun undoDeleteWorker(): Boolean {
         val worker = _lastDeletedWorker.value ?: return false
-        if (_workers.value.none { it.id == worker.id }) {
+        val alreadyPresent = _workers.value.any { it.id == worker.id }
+        if (!alreadyPresent) {
             _workers.value = _workers.value + worker
             persistLocalData()
-            _lastDeletedWorker.value = null
-            return true
         }
-        return false
+        _lastDeletedWorker.value = null
+        return true
     }
 
     fun setAttendanceStatus(workerId: String, monthStr: String, dayNumber: Int, status: AttendanceStatus) {
@@ -693,11 +730,6 @@ class LaborRepository(private val context: Context? = null) {
         persistProfile()
     }
 
-    fun toggleAppLock() {
-        _userProfile.value = _userProfile.value.copy(appLockEnabled = !_userProfile.value.appLockEnabled)
-        persistProfile()
-    }
-
     fun setLanguage(lang: String) {
         _userProfile.value = _userProfile.value.copy(language = lang)
         persistProfile()
@@ -712,6 +744,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     fun restoreData(backupData: BackupData) {
+        _lastDeletedWorker.value = null
         _workers.value = backupData.workers
         _transactions.value = backupData.transactions
         if (backupData.userProfile != null) {

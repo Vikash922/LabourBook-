@@ -25,6 +25,7 @@ import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
@@ -76,6 +77,7 @@ fun LaborHomeScreen(
     val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
     val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
     val lastDeletedWorker by viewModel.lastDeletedWorker.collectAsState()
+    val workerSearchQuery by viewModel.workerSearchQuery.collectAsState()
     val lang = userProfile.language
 
     Scaffold(
@@ -126,8 +128,6 @@ fun LaborHomeScreen(
         ) {
             item {
                 // Search Bar
-                var searchQuery by remember { mutableStateOf("") }
-                
                 androidx.compose.foundation.layout.Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -145,16 +145,15 @@ fun LaborHomeScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         androidx.compose.foundation.text.BasicTextField(
-                            value = searchQuery,
+                            value = workerSearchQuery,
                             onValueChange = { newValue: String ->
-                                searchQuery = newValue 
                                 viewModel.onWorkerSearchQueryChanged(newValue)
                             },
                             textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black, fontSize = 14.sp),
                             modifier = Modifier.fillMaxWidth(),
                             decorationBox = @androidx.compose.runtime.Composable { innerTextField: @androidx.compose.runtime.Composable () -> Unit ->
                                 androidx.compose.foundation.layout.Box {
-                                    if (searchQuery.isEmpty()) {
+                                    if (workerSearchQuery.isEmpty()) {
                                         Text(
                                             text = AppStrings.get("search_contact", lang),
                                             color = Color.Gray,
@@ -186,9 +185,9 @@ fun LaborHomeScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                             Icon(
-                                imageVector = Icons.Default.CloudDone,
+                                imageVector = if (lastBackupStatus.contains("failed", ignoreCase = true)) Icons.Default.CloudOff else Icons.Default.CloudDone,
                                 contentDescription = null,
-                                tint = if (lastBackupStatus.contains("failed", ignoreCase = true) || lastBackupStatus.contains("No cloud backup", ignoreCase = true)) Color(0xFFDC2626) else Color(0xFF16A34A),
+                                tint = if (lastBackupStatus.contains("failed", ignoreCase = true)) Color(0xFFDC2626) else Color(0xFF16A34A),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -197,6 +196,7 @@ fun LaborHomeScreen(
                                 fontSize = 11.sp,
                                 color = Color(0xFF374151),
                                 maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -219,7 +219,8 @@ fun LaborHomeScreen(
                 }
 
                 // Accidentally Deleted Worker Undo Recovery Banner
-                if (lastDeletedWorker != null) {
+                val showUndoBanner = lastDeletedWorker != null && workers.none { it.id == lastDeletedWorker?.id }
+                if (showUndoBanner) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
                         modifier = Modifier
@@ -244,7 +245,7 @@ fun LaborHomeScreen(
                                     color = Color(0xFF92400E)
                                 )
                                 Text(
-                                    text = "Safety snapshot saved. Tap UNDO to restore.",
+                                    text = "Tap UNDO to restore immediately.",
                                     fontSize = 11.sp,
                                     color = Color(0xFFB45309)
                                 )
@@ -279,13 +280,35 @@ fun LaborHomeScreen(
                     )
                 }
             } else {
-                items(workers, key = { it.id }) { worker ->
-                    LaborWorkerCard(
-                        worker = worker,
-                        onCardClick = {
-                            viewModel.navigateTo(Screen.LaborDetail(worker.id))
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column {
+                            workers.forEachIndexed { index, worker ->
+                                val isFirst = index == 0
+                                val isLast = index == workers.lastIndex
+                                val shape = when {
+                                    isFirst && isLast -> RoundedCornerShape(16.dp)
+                                    isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                                    isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                                    else -> androidx.compose.ui.graphics.RectangleShape
+                                }
+                                
+                                com.example.ui.components.LaborWorkerCard(
+                                    worker = worker,
+                                    onCardClick = { viewModel.navigateTo(Screen.LaborDetail(worker.id)) },
+                                    shape = shape,
+                                    showDivider = !isLast
+                                )
+                            }
                         }
-                    )
+                    }
                 }
             }
         }
@@ -400,7 +423,7 @@ fun EmptyLaborStateCard(
                 onClick = onRestoreClick
             ) {
                 Text(
-                    text = "↺ Restore From Google Drive / Safety Backup",
+                    text = "↺ Restore From Cloud / Safety Backup",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = LaborBlue

@@ -6,13 +6,23 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+
 import androidx.compose.ui.Modifier
 import com.example.ui.components.LaborbookBottomNav
 import com.example.ui.screens.AddLaborScreen
@@ -34,6 +44,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
         // Check if Firebase user is authenticated on startup and navigate to dashboard
         viewModel.checkFirebaseAutoLogin(isStartup = true)
         setContent {
@@ -75,6 +86,7 @@ fun LaborbookApp(viewModel: LaborViewModel) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (isRootTabScreen) {
                 LaborbookBottomNav(
@@ -90,18 +102,57 @@ fun LaborbookApp(viewModel: LaborViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
-            when (val screen = currentScreen) {
-                is Screen.Login -> LoginScreen(viewModel = viewModel)
-                is Screen.LaborHome -> LaborHomeScreen(viewModel = viewModel)
-                is Screen.AddLabor -> AddLaborScreen(viewModel = viewModel)
-                is Screen.LaborDetail -> LaborDetailScreen(workerId = screen.workerId, viewModel = viewModel)
-                is Screen.LaborReport -> LaborReportScreen(workerId = screen.workerId, viewModel = viewModel)
-                is Screen.CashBook -> CashBookScreen(viewModel = viewModel)
-                is Screen.CashBookReport -> CashBookReportScreen(viewModel = viewModel)
-                is Screen.Settings -> SettingsScreen(viewModel = viewModel)
-                is Screen.BatchPdfHub -> BatchPdfHubScreen(viewModel = viewModel)
+            AnimatedContent(
+                targetState = currentScreen,
+                label = "ScreenTransition",
+                transitionSpec = {
+                    val isRootToRoot = (initialState is Screen.LaborHome || initialState is Screen.CashBook || initialState is Screen.Settings) &&
+                            (targetState is Screen.LaborHome || targetState is Screen.CashBook || targetState is Screen.Settings)
+                    
+                    val isLogin = initialState is Screen.Login || targetState is Screen.Login
+                    
+                    if (isRootToRoot || isLogin) {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    } else {
+                        val isNavigatingBack = (targetState is Screen.LaborHome && (initialState is Screen.AddLabor || initialState is Screen.LaborDetail)) ||
+                                (targetState is Screen.CashBook && initialState is Screen.CashBookReport) ||
+                                (targetState is Screen.Settings && initialState is Screen.BatchPdfHub) ||
+                                (targetState is Screen.LaborDetail && initialState is Screen.LaborReport)
+
+                        if (isNavigatingBack) {
+                            (slideInHorizontally(
+                                initialOffsetX = { -it / 3 },
+                                animationSpec = tween(350)
+                            ) + fadeIn(animationSpec = tween(350))) togetherWith (slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(350)
+                            ) + fadeOut(animationSpec = tween(350)))
+                        } else {
+                            (slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(350)
+                            ) + fadeIn(animationSpec = tween(350))) togetherWith (slideOutHorizontally(
+                                targetOffsetX = { -it / 3 },
+                                animationSpec = tween(350)
+                            ) + fadeOut(animationSpec = tween(350)))
+                        }
+                    }
+                }
+            ) { screen ->
+                when (screen) {
+                    is Screen.Login -> LoginScreen(viewModel = viewModel)
+                    is Screen.LaborHome -> LaborHomeScreen(viewModel = viewModel)
+                    is Screen.AddLabor -> AddLaborScreen(viewModel = viewModel)
+                    is Screen.LaborDetail -> LaborDetailScreen(workerId = screen.workerId, viewModel = viewModel)
+                    is Screen.LaborReport -> LaborReportScreen(workerId = screen.workerId, viewModel = viewModel)
+                    is Screen.CashBook -> CashBookScreen(viewModel = viewModel)
+                    is Screen.CashBookReport -> CashBookReportScreen(viewModel = viewModel)
+                    is Screen.Settings -> SettingsScreen(viewModel = viewModel)
+                    is Screen.BatchPdfHub -> BatchPdfHubScreen(viewModel = viewModel)
+                }
             }
         }
     }

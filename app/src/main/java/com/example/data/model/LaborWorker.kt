@@ -28,28 +28,37 @@ enum class PaymentMethod {
 }
 
 data class DailyAttendance(
-    val dayNumber: Int,
-    val dayOfWeek: String, // "Mon", "Tue", etc.
-    val fullDate: String,  // "2026-08-01"
+    val dayNumber: Int = 1,
+    val dayOfWeek: String = "Mon", // "Mon", "Tue", etc.
+    val fullDate: String = "",  // "2026-08-01"
     val status: AttendanceStatus = AttendanceStatus.UNMARKED,
     val overtimeHours: Double = 0.0,
     val advanceAmount: Double = 0.0,
     val note: String = ""
 )
 
+data class WorkerMonthStats(
+    val presentCount: Double = 0.0,
+    val absentCount: Double = 0.0,
+    val overtimeHours: Double = 0.0,
+    val totalAdvance: Double = 0.0,
+    val estimatedEarnings: Double = 0.0
+)
+
 data class LaborWorker(
-    val id: String,
-    val name: String,
-    val phoneNumber: String,
+    val id: String = "",
+    val name: String = "",
+    val phoneNumber: String = "",
     val dailyWage: Double = 800.0,
-    val skills: List<String> = listOf("Tile worker", "Carpenter", "Painter", "Marble worker"),
+    val skills: List<String> = listOf("Staff", "Worker"),
     val avatarColorHex: String = "#1656D6",
     val attendance: Map<String, DailyAttendance> = emptyMap(), // keyed by date "yyyy-MM-dd" e.g. "2026-08-15"
     val createdAt: Long = System.currentTimeMillis()
 ) {
     fun getAttendanceForMonth(monthStr: String): Map<Int, DailyAttendance> {
         val (year, month) = LaborCalendarHelper.parseYearMonth(monthStr)
-        val prefix = String.format(Locale.US, "%04d-%02d", year, month)
+        val mStr = if (month < 10) "0$month" else month.toString()
+        val prefix = "$year-$mStr"
         val map = mutableMapOf<Int, DailyAttendance>()
         attendance.forEach { (key, value) ->
             if (key.startsWith(prefix)) {
@@ -66,31 +75,43 @@ data class LaborWorker(
         return map
     }
 
-    fun getTotalPresent(monthStr: String = "Aug 2026"): Double {
+    fun calculateMonthStats(monthStr: String = "Aug 2026"): WorkerMonthStats {
         val monthAtt = getAttendanceForMonth(monthStr)
-        return monthAtt.values.count { it.status == AttendanceStatus.PRESENT || it.status == AttendanceStatus.OVERTIME }.toDouble() +
-                (monthAtt.values.count { it.status == AttendanceStatus.HALF_DAY } * 0.5)
+        var present = 0.0
+        var absent = 0.0
+        var ot = 0.0
+        var adv = 0.0
+
+        for (rec in monthAtt.values) {
+            when (rec.status) {
+                AttendanceStatus.PRESENT, AttendanceStatus.OVERTIME -> present += 1.0
+                AttendanceStatus.HALF_DAY -> present += 0.5
+                AttendanceStatus.ABSENT -> absent += 1.0
+                AttendanceStatus.UNMARKED -> {}
+            }
+            ot += rec.overtimeHours
+            adv += rec.advanceAmount
+        }
+
+        val netEarnings = (present * dailyWage) + (ot * (dailyWage / 8.0) * 1.5) - adv
+        return WorkerMonthStats(
+            presentCount = present,
+            absentCount = absent,
+            overtimeHours = ot,
+            totalAdvance = adv,
+            estimatedEarnings = netEarnings
+        )
     }
 
-    fun getTotalAbsent(monthStr: String = "Aug 2026"): Double {
-        val monthAtt = getAttendanceForMonth(monthStr)
-        return monthAtt.values.count { it.status == AttendanceStatus.ABSENT }.toDouble()
-    }
+    fun getTotalPresent(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).presentCount
 
-    fun getTotalOvertimeHours(monthStr: String = "Aug 2026"): Double {
-        return getAttendanceForMonth(monthStr).values.sumOf { it.overtimeHours }
-    }
+    fun getTotalAbsent(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).absentCount
 
-    fun getTotalAdvance(monthStr: String = "Aug 2026"): Double {
-        return getAttendanceForMonth(monthStr).values.sumOf { it.advanceAmount }
-    }
+    fun getTotalOvertimeHours(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).overtimeHours
 
-    fun getEstimatedEarnings(monthStr: String = "Aug 2026"): Double {
-        val present = getTotalPresent(monthStr)
-        val ot = getTotalOvertimeHours(monthStr)
-        val adv = getTotalAdvance(monthStr)
-        return (present * dailyWage) + (ot * (dailyWage / 8.0) * 1.5) - adv
-    }
+    fun getTotalAdvance(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).totalAdvance
+
+    fun getEstimatedEarnings(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).estimatedEarnings
 
     val totalPresent: Double
         get() = getTotalPresent("Aug 2026")
@@ -109,21 +130,21 @@ data class LaborWorker(
 }
 
 data class CashTransaction(
-    val id: String,
-    val dateDisplay: String, // e.g. "15 Sat"
-    val fullDate: String,    // e.g. "2026-08-15"
-    val type: TransactionType,
-    val amount: Double,
+    val id: String = "",
+    val dateDisplay: String = "", // e.g. "15 Sat"
+    val fullDate: String = "",    // e.g. "2026-08-15"
+    val type: TransactionType = TransactionType.CASH_IN,
+    val amount: Double = 0.0,
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
-    val notes: String,
+    val notes: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
 
 data class SavedContact(
-    val id: String,
-    val name: String,
-    val phoneNumber: String,
-    val avatarColorHex: String,
+    val id: String = "",
+    val name: String = "",
+    val phoneNumber: String = "",
+    val avatarColorHex: String = "#000000",
     val initial: String = name.take(1).uppercase()
 )
 

@@ -13,12 +13,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
@@ -41,8 +46,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,12 +72,15 @@ fun TransactionViewBottomSheet(
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
+
     // Dimmed Overlay
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.5f))
             .clickable { onCloseClick() }
+            .imePadding()
     ) {
         Column(
             modifier = Modifier
@@ -114,6 +124,7 @@ fun TransactionViewBottomSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(scrollState)
                         .padding(24.dp)
                 ) {
                     // Header Row: Date Title & Edit Button
@@ -247,6 +258,8 @@ fun TransactionEditBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
 
     var amountText by remember {
         mutableStateOf(if (transaction != null && transaction.amount > 0) transaction.amount.toInt().toString() else "500")
@@ -299,7 +312,11 @@ fun TransactionEditBottomSheet(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.5f))
-            .clickable { onClose() }
+            .clickable { 
+                focusManager.clearFocus()
+                onClose() 
+            }
+            .imePadding()
     ) {
         Column(
             modifier = Modifier
@@ -320,7 +337,10 @@ fun TransactionEditBottomSheet(
                     shadowElevation = 6.dp,
                     modifier = Modifier
                         .size(36.dp)
-                        .clickable { onClose() }
+                        .clickable { 
+                            focusManager.clearFocus()
+                            onClose() 
+                        }
                         .testTag("close_edit_sheet")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -343,6 +363,7 @@ fun TransactionEditBottomSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(scrollState)
                         .padding(24.dp)
                 ) {
                     // Header Row: 'Cash In' (bold left) | Interactive Date Pill with Calendar Icon
@@ -411,7 +432,10 @@ fun TransactionEditBottomSheet(
                             OutlinedTextField(
                                 value = amountText,
                                 onValueChange = { amountText = it },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Next
+                                ),
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     fontSize = 26.sp,
                                     fontWeight = FontWeight.Bold,
@@ -477,6 +501,12 @@ fun TransactionEditBottomSheet(
                         onValueChange = { notesText = it },
                         label = { Text("Notes") },
                         placeholder = { Text("Enter note (e.g. Income, Cement purchase)") },
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("tx_notes_input"),
@@ -496,7 +526,10 @@ fun TransactionEditBottomSheet(
                     ) {
                         if (transaction != null && transaction.id.isNotBlank()) {
                             Button(
-                                onClick = { onDelete(transaction.id) },
+                                onClick = { 
+                                    focusManager.clearFocus()
+                                    onDelete(transaction.id) 
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
@@ -519,6 +552,7 @@ fun TransactionEditBottomSheet(
 
                         Button(
                             onClick = {
+                                focusManager.clearFocus()
                                 val amount = amountText.toDoubleOrNull() ?: 0.0
                                 onSave(
                                     transaction?.id ?: "",

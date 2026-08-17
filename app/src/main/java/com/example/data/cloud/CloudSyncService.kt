@@ -37,10 +37,7 @@ object CloudSyncService {
             Result.success("Sync completed successfully ($workerCount workers, $transactionCount transactions backed up securely).")
         } catch (e: Exception) {
             isSyncing = false
-            // Gracefully succeed with local secure sandbox sync
-            val timeStr = SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault()).format(Date())
-            lastSyncTime = timeStr
-            Result.success("Encrypted cloud sync validated ($workerCount workers, $transactionCount transactions).")
+            Result.failure(e)
         }
     }
 }

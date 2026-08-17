@@ -33,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -61,8 +62,8 @@ fun CashBookReportScreen(
 ) {
     val transactions by viewModel.transactions.collectAsState()
 
-    val cashInTotal = transactions.filter { it.type == TransactionType.CASH_IN }.sumOf { it.amount }
-    val cashOutTotal = transactions.filter { it.type == TransactionType.CASH_OUT }.sumOf { it.amount }
+    val cashInTotal = remember(transactions) { transactions.filter { it.type == TransactionType.CASH_IN }.sumOf { it.amount } }
+    val cashOutTotal = remember(transactions) { transactions.filter { it.type == TransactionType.CASH_OUT }.sumOf { it.amount } }
     val balance = cashInTotal - cashOutTotal
 
     Scaffold(
@@ -271,7 +272,7 @@ fun CashBookReportScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Balance", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = LaborTextPrimary)
-                            Text("₹ ${balance.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (balance >= 0) LaborBlue else LaborError)
+                            Text("₹ ${balance.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (balance >= 0.0) LaborBlue else LaborError)
                         }
                     }
                 }

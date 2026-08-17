@@ -29,7 +29,7 @@ object FirebaseAuthHelper {
     private const val TAG = "FirebaseAuthHelper"
 
     // Default Web Client ID (Can be injected or fallback)
-    private const val DEFAULT_SERVER_CLIENT_ID = "279343468785-web-applet.apps.googleusercontent.com"
+    private const val DEFAULT_SERVER_CLIENT_ID = "1027179208222-2hhdrgohaaa7ed068smm0tekptejq4k8.apps.googleusercontent.com"
 
     fun isFirebaseInitialized(context: Context): Boolean {
         return try {
@@ -39,10 +39,11 @@ object FirebaseAuthHelper {
         }
     }
 
-    fun getCurrentFirebaseUser(): FirebaseUser? {
+    fun getCurrentFirebaseUser(context: Context? = null): FirebaseUser? {
         return try {
+            if (context != null && !isFirebaseInitialized(context)) return null
             FirebaseAuth.getInstance().currentUser
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }
@@ -105,24 +106,29 @@ object FirebaseAuthHelper {
                 Log.i(TAG, "Successfully received Google ID Token for: $email")
 
                 // Authenticate with Firebase if Firebase is available
-                val firebaseUser = try {
-                    if (isFirebaseInitialized(context)) {
+                if (isFirebaseInitialized(context)) {
+                    try {
                         val authCredential = GoogleAuthProvider.getCredential(idToken, null)
                         val authResult = FirebaseAuth.getInstance().signInWithCredential(authCredential).await()
-                        authResult.user
-                    } else null
-                } catch (e: Exception) {
-                    Log.w(TAG, "Firebase Auth signInWithCredential skipped or failed: ${e.message}")
-                    null
+                        val firebaseUser = authResult.user
+                        if (firebaseUser != null) {
+                            val authUser = AuthUser(
+                                uid = firebaseUser.uid,
+                                displayName = displayName,
+                                email = email,
+                                photoUrl = photoUrl
+                            )
+                            Result.success(authUser)
+                        } else {
+                            Result.failure(Exception("Firebase Auth returned null user."))
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Firebase Auth signInWithCredential failed: ${e.message}")
+                        Result.failure(e)
+                    }
+                } else {
+                    Result.failure(Exception("Firebase is not initialized. Please connect google-services.json."))
                 }
-
-                val authUser = AuthUser(
-                    uid = firebaseUser?.uid ?: "goog_${email.hashCode()}",
-                    displayName = displayName,
-                    email = email,
-                    photoUrl = photoUrl
-                )
-                Result.success(authUser)
             } else {
                 Log.w(TAG, "Received unexpected credential type: ${credential.type}")
                 Result.failure(Exception("Unsupported credential type: ${credential.type}"))
@@ -135,6 +141,60 @@ object FirebaseAuthHelper {
             Result.failure(e)
         } catch (e: Exception) {
             Log.e(TAG, "Sign in failed: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+
+
+    /**
+     * Signs in with Email and Password using Firebase Auth.
+     */
+    suspend fun signInWithEmail(context: Context, email: String, pass: String): Result<AuthUser> {
+        return try {
+            if (isFirebaseInitialized(context)) {
+                val authResult = FirebaseAuth.getInstance().signInWithEmailAndPassword(email, pass).await()
+                val fbUser = authResult.user
+                if (fbUser != null) {
+                    val authUser = AuthUser(
+                        uid = fbUser.uid,
+                        displayName = fbUser.displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() },
+                        email = fbUser.email ?: email
+                    )
+                    Result.success(authUser)
+                } else {
+                    Result.failure(Exception("Authentication failed"))
+                }
+            } else {
+                Result.failure(Exception("Firebase is not initialized. Please connect google-services.json."))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Registers a new account with Email and Password using Firebase Auth.
+     */
+    suspend fun signUpWithEmail(context: Context, email: String, pass: String): Result<AuthUser> {
+        return try {
+            if (isFirebaseInitialized(context)) {
+                val authResult = FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, pass).await()
+                val fbUser = authResult.user
+                if (fbUser != null) {
+                    val authUser = AuthUser(
+                        uid = fbUser.uid,
+                        displayName = fbUser.displayName ?: email.substringBefore("@").replaceFirstChar { it.uppercase() },
+                        email = fbUser.email ?: email
+                    )
+                    Result.success(authUser)
+                } else {
+                    Result.failure(Exception("Account creation failed"))
+                }
+            } else {
+                Result.failure(Exception("Firebase is not initialized. Please connect google-services.json."))
+            }
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }

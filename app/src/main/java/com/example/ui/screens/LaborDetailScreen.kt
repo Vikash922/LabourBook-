@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AttendanceStatus
+import com.example.data.model.DailyAttendance
 import com.example.data.model.LaborWorker
 import com.example.ui.theme.LaborBackground
 import com.example.ui.theme.LaborBlue
@@ -73,6 +76,7 @@ import com.example.ui.theme.LaborTextSecondary
 import com.example.ui.viewmodel.LaborViewModel
 import com.example.ui.viewmodel.Screen
 import com.example.util.LaborCalendarHelper
+import com.example.util.MonthDayInfo
 
 @Composable
 fun LaborDetailScreen(
@@ -92,14 +96,15 @@ fun LaborDetailScreen(
     }
 
     val (currentYear, currentMonthNum) = remember(selectedMonth) { LaborCalendarHelper.parseYearMonth(selectedMonth) }
-    val daysInCurrentMonth = remember(currentYear, currentMonthNum) { LaborCalendarHelper.getDaysInMonth(currentYear, currentMonthNum) }
+    val monthDaysInfo = remember(currentYear, currentMonthNum) { LaborCalendarHelper.getMonthDaysInfo(currentYear, currentMonthNum) }
     val context = LocalContext.current
 
-    val monthPresent = remember(worker, selectedMonth) { worker.getTotalPresent(selectedMonth) }
-    val monthAbsent = remember(worker, selectedMonth) { worker.getTotalAbsent(selectedMonth) }
-    val monthOvertime = remember(worker, selectedMonth) { worker.getTotalOvertimeHours(selectedMonth) }
-    val monthAdvance = remember(worker, selectedMonth) { worker.getTotalAdvance(selectedMonth) }
-    val monthEstimatedEarnings = remember(worker, selectedMonth) { worker.getEstimatedEarnings(selectedMonth) }
+    val monthStats = remember(worker, selectedMonth) { worker.calculateMonthStats(selectedMonth) }
+    val monthPresent = monthStats.presentCount
+    val monthAbsent = monthStats.absentCount
+    val monthOvertime = monthStats.overtimeHours
+    val monthAdvance = monthStats.totalAdvance
+    val monthEstimatedEarnings = monthStats.estimatedEarnings
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showEditWorkerDialog by remember { mutableStateOf(false) }
@@ -404,169 +409,70 @@ fun LaborDetailScreen(
 
             item { Spacer(modifier = Modifier.height(14.dp)) }
 
-            // Daily Attendance Table
+            // Daily Attendance Table Header
             item {
-                Column(
+                // Column Headers: 'Date' | 'Attendance' | '₹ / Notes'
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 70.dp)
+                        .background(Color(0xFFF9FAFB))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Column Headers: 'Date' | 'Attendance' | '₹ / Notes'
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF9FAFB))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Date",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LaborTextSecondary,
-                            modifier = Modifier.weight(1.1f)
-                        )
-                        Text(
-                            text = "Attendance",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LaborTextSecondary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(2.3f)
-                        )
-                        Text(
-                            text = "₹ / Notes",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LaborTextSecondary,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier.weight(1.3f)
-                        )
-                    }
-
-                    HorizontalDivider(color = LaborDivider, thickness = 0.8.dp)
-
-                    // Month days sequential list
-                    for (day in 1..daysInCurrentMonth) {
-                        val dateKey = LaborCalendarHelper.getDateKey(currentYear, currentMonthNum, day)
-                        val dow = LaborCalendarHelper.getDayOfWeekShort(currentYear, currentMonthNum, day)
-                        val isToday = LaborCalendarHelper.isToday(currentYear, currentMonthNum, day)
-
-                        val dayRecord = worker.attendance[dateKey]
-                        val status = dayRecord?.status ?: AttendanceStatus.UNMARKED
-                        val advance = dayRecord?.advanceAmount ?: 0.0
-                        val note = dayRecord?.note ?: ""
-                        val otHours = dayRecord?.overtimeHours ?: 0.0
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (isToday) Color(0xFFEFF6FF) else Color.White)
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Column 1: Date & Day of Week
-                            Column(modifier = Modifier.weight(1.1f)) {
-                                Text(
-                                    text = String.format("%02d %s", day, dow),
-                                    fontSize = 14.sp,
-                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isToday) LaborBlue else LaborTextPrimary
-                                )
-                                if (isToday) {
-                                    Text(
-                                        text = "Today",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborBlue
-                                    )
-                                }
-                            }
-
-                            // Column 2: Status Chips [P] [A] [OT] [HD]
-                            Row(
-                                modifier = Modifier.weight(2.3f),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // P - Present (Green)
-                                DetailStatusChip(
-                                    label = "P",
-                                    color = LaborSuccess,
-                                    isSelected = status == AttendanceStatus.PRESENT,
-                                    onClick = {
-                                        viewModel.setAttendance(worker.id, day, AttendanceStatus.PRESENT, selectedMonth)
-                                    }
-                                )
-
-                                // A - Absent (Red)
-                                DetailStatusChip(
-                                    label = "A",
-                                    color = LaborError,
-                                    isSelected = status == AttendanceStatus.ABSENT,
-                                    onClick = {
-                                        viewModel.setAttendance(worker.id, day, AttendanceStatus.ABSENT, selectedMonth)
-                                    }
-                                )
-
-                                // OT - Overtime (Blue)
-                                DetailStatusChip(
-                                    label = if (status == AttendanceStatus.OVERTIME && otHours > 0) "${otHours.toInt()}h" else "OT",
-                                    color = LaborBlue,
-                                    isSelected = status == AttendanceStatus.OVERTIME,
-                                    onClick = {
-                                        selectedDayForOvertimeDialog = day
-                                    }
-                                )
-
-                                // HD - Half Day (Purple)
-                                DetailStatusChip(
-                                    label = "HD",
-                                    color = LaborPurple,
-                                    isSelected = status == AttendanceStatus.HALF_DAY,
-                                    onClick = {
-                                        viewModel.setAttendance(worker.id, day, AttendanceStatus.HALF_DAY, selectedMonth)
-                                    }
-                                )
-                            }
-
-                            // Column 3: Notes / Advance Pill
-                            Column(
-                                modifier = Modifier
-                                    .weight(1.3f)
-                                    .clickable { selectedDayForAdvanceDialog = day },
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                if (advance > 0) {
-                                    Text(
-                                        text = "₹${advance.toInt()}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborError
-                                    )
-                                }
-                                if (note.isNotBlank()) {
-                                    Text(
-                                        text = note,
-                                        fontSize = 11.sp,
-                                        color = LaborTextSecondary,
-                                        maxLines = 1
-                                    )
-                                }
-                                if (advance == 0.0 && note.isBlank()) {
-                                    Text(
-                                        text = "+ Add",
-                                        fontSize = 12.sp,
-                                        color = Color.LightGray,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-
-                        HorizontalDivider(color = LaborDivider.copy(alpha = 0.5f), thickness = 0.5.dp)
-                    }
+                    Text(
+                        text = "Date",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LaborTextSecondary,
+                        modifier = Modifier.weight(1.1f)
+                    )
+                    Text(
+                        text = "Attendance",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LaborTextSecondary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(2.3f)
+                    )
+                    Text(
+                        text = "₹ / Notes",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LaborTextSecondary,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.weight(1.3f)
+                    )
                 }
+                HorizontalDivider(color = LaborDivider, thickness = 0.8.dp)
+            }
+
+            // Month days sequential list as individual items for zero-delay granular recomposition
+            items(
+                items = monthDaysInfo,
+                key = { it.dateKey }
+            ) { dayInfo ->
+                val dayRecord = worker.attendance[dayInfo.dateKey]
+
+                LaborAttendanceDayRow(
+                    dayInfo = dayInfo,
+                    status = dayRecord?.status ?: AttendanceStatus.UNMARKED,
+                    advance = dayRecord?.advanceAmount ?: 0.0,
+                    note = dayRecord?.note ?: "",
+                    otHours = dayRecord?.overtimeHours ?: 0.0,
+                    onStatusSelected = { day, status ->
+                        viewModel.setAttendance(worker.id, day, status, selectedMonth)
+                    },
+                    onOvertimeClicked = { day ->
+                        selectedDayForOvertimeDialog = day
+                    },
+                    onAdvanceClicked = { day ->
+                        selectedDayForAdvanceDialog = day
+                    }
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(70.dp))
             }
         }
     }
@@ -691,92 +597,14 @@ fun LaborDetailScreen(
     }
 
     // Month Selector Dialog
+    // Month Selector Dialog
     if (showCalendarDialog) {
-        val months = LaborCalendarHelper.monthsShort
-        val years = LaborCalendarHelper.years
-        var selectedTempMonth by remember { mutableStateOf(selectedMonth.split(" ").firstOrNull() ?: "Aug") }
-        var selectedTempYear by remember { mutableStateOf(selectedMonth.split(" ").getOrNull(1) ?: "2026") }
-        var monthExpanded by remember { mutableStateOf(false) }
-        var yearExpanded by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = { showCalendarDialog = false },
-            title = { Text("Select Attendance Month", fontWeight = FontWeight.Bold) },
-            text = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = selectedTempMonth,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Month") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                IconButton(onClick = { monthExpanded = true }) {
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                                }
-                            }
-                        )
-                        DropdownMenu(
-                            expanded = monthExpanded,
-                            onDismissRequest = { monthExpanded = false }
-                        ) {
-                            months.forEach { month ->
-                                DropdownMenuItem(
-                                    text = { Text(month) },
-                                    onClick = {
-                                        selectedTempMonth = month
-                                        monthExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = selectedTempYear,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Year") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                IconButton(onClick = { yearExpanded = true }) {
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null)
-                                }
-                            }
-                        )
-                        DropdownMenu(
-                            expanded = yearExpanded,
-                            onDismissRequest = { yearExpanded = false }
-                        ) {
-                            years.forEach { year ->
-                                DropdownMenuItem(
-                                    text = { Text(year) },
-                                    onClick = {
-                                        selectedTempYear = year
-                                        yearExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.updateSelectedMonth("$selectedTempMonth $selectedTempYear")
-                        showCalendarDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
-                ) {
-                    Text("OK", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCalendarDialog = false }) {
-                    Text("Cancel", color = LaborTextSecondary)
-                }
+        MonthYearSelectionDialog(
+            initialSelection = selectedMonth,
+            onDismiss = { showCalendarDialog = false },
+            onConfirm = { newSelection -> 
+                viewModel.updateSelectedMonth(newSelection)
+                showCalendarDialog = false 
             }
         )
     }
@@ -868,6 +696,134 @@ fun LaborDetailScreen(
     }
 }
 
+private val ChipCornerShape = RoundedCornerShape(6.dp)
+private val RowTodayBg = Color(0xFFEFF6FF)
+private val RowNormalBg = Color.White
+private val DividerStrokeColor = Color(0xFFE5E7EB)
+
+@Composable
+fun LaborAttendanceDayRow(
+    dayInfo: MonthDayInfo,
+    status: AttendanceStatus,
+    advance: Double,
+    note: String,
+    otHours: Double,
+    onStatusSelected: (Int, AttendanceStatus) -> Unit,
+    onOvertimeClicked: (Int) -> Unit,
+    onAdvanceClicked: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                drawLine(
+                    color = DividerStrokeColor,
+                    start = androidx.compose.ui.geometry.Offset(0f, size.height),
+                    end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+                    strokeWidth = 1f
+                )
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(if (dayInfo.isToday) RowTodayBg else RowNormalBg)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Column 1: Date & Day of Week
+            Column(modifier = Modifier.weight(1.1f)) {
+                Text(
+                    text = dayInfo.formattedDisplay,
+                    fontSize = 14.sp,
+                    fontWeight = if (dayInfo.isToday) FontWeight.Bold else FontWeight.Medium,
+                    color = if (dayInfo.isToday) LaborBlue else LaborTextPrimary
+                )
+                if (dayInfo.isToday) {
+                    Text(
+                        text = "Today",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LaborBlue
+                    )
+                }
+            }
+
+            // Column 2: Status Chips [P] [A] [OT] [HD]
+            Row(
+                modifier = Modifier.weight(2.3f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // P - Present (Green)
+                DetailStatusChip(
+                    label = "P",
+                    color = LaborSuccess,
+                    isSelected = status == AttendanceStatus.PRESENT,
+                    onClick = { onStatusSelected(dayInfo.day, AttendanceStatus.PRESENT) }
+                )
+
+                // A - Absent (Red)
+                DetailStatusChip(
+                    label = "A",
+                    color = LaborError,
+                    isSelected = status == AttendanceStatus.ABSENT,
+                    onClick = { onStatusSelected(dayInfo.day, AttendanceStatus.ABSENT) }
+                )
+
+                // OT - Overtime (Blue)
+                DetailStatusChip(
+                    label = if (status == AttendanceStatus.OVERTIME && otHours > 0) "${otHours.toInt()}h" else "OT",
+                    color = LaborBlue,
+                    isSelected = status == AttendanceStatus.OVERTIME,
+                    onClick = { onOvertimeClicked(dayInfo.day) }
+                )
+
+                // HD - Half Day (Purple)
+                DetailStatusChip(
+                    label = "HD",
+                    color = LaborPurple,
+                    isSelected = status == AttendanceStatus.HALF_DAY,
+                    onClick = { onStatusSelected(dayInfo.day, AttendanceStatus.HALF_DAY) }
+                )
+            }
+
+            // Column 3: Notes / Advance Pill
+            Column(
+                modifier = Modifier
+                    .weight(1.3f)
+                    .clickable { onAdvanceClicked(dayInfo.day) },
+                horizontalAlignment = Alignment.End
+            ) {
+                if (advance > 0) {
+                    Text(
+                        text = "₹${advance.toInt()}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LaborError
+                    )
+                }
+                if (note.isNotBlank()) {
+                    Text(
+                        text = note,
+                        fontSize = 11.sp,
+                        color = LaborTextSecondary,
+                        maxLines = 1
+                    )
+                }
+                if (advance == 0.0 && note.isBlank()) {
+                    Text(
+                        text = "+ Add",
+                        fontSize = 12.sp,
+                        color = Color.LightGray,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun DetailStatusChip(
     label: String,
@@ -878,11 +834,11 @@ fun DetailStatusChip(
     Box(
         modifier = Modifier
             .size(28.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(ChipCornerShape)
             .border(
                 width = 1.2.dp,
                 color = color,
-                shape = RoundedCornerShape(6.dp)
+                shape = ChipCornerShape
             )
             .background(if (isSelected) color else Color.White)
             .clickable { onClick() },

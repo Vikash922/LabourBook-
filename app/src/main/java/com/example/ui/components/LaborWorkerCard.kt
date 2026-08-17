@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,63 +46,90 @@ import com.example.ui.theme.LaborSuccess
 import com.example.ui.theme.LaborTextPrimary
 import com.example.ui.theme.LaborTextSecondary
 
+private val WorkerCardShape = RoundedCornerShape(12.dp)
+private val WorkerBorderStroke = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
+private val AvatarBorderColor = Color(0xFFE5E7EB)
+
 @Composable
 fun LaborWorkerCard(
     worker: LaborWorker,
     onCardClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
+    showDivider: Boolean = false
 ) {
-    Card(
+    val initial = remember(worker.name) { worker.name.take(1).uppercase() }
+
+    val avatarBgColor = remember(worker.id) {
+        val colors = listOf(
+            Color(0xFFE3F2FD), // Light Blue
+            Color(0xFFF3E5F5), // Light Purple
+            Color(0xFFE8F5E9), // Light Green
+            Color(0xFFFFF3E0), // Light Orange
+            Color(0xFFFFEBEE), // Light Red
+            Color(0xFFE0F7FA), // Light Cyan
+            Color(0xFFFCE4EC), // Light Pink
+            Color(0xFFF1F8E9), // Light Lime
+            Color(0xFFFFF8E1), // Light Amber
+            Color(0xFFEDE7F6)  // Light Deep Purple
+        )
+        val hash = worker.id.hashCode()
+        colors[kotlin.math.abs(hash) % colors.size]
+    }
+
+    Surface(
+        onClick = onCardClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onCardClick() }
             .testTag("labor_worker_card_${worker.id}"),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        shape = shape,
+        color = Color.White
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar Circle
-            Box(
+        Column {
+            Row(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFF3F4F6))
-                    .border(1.dp, Color(0xFFE5E7EB), CircleShape),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = worker.name.take(1).uppercase(),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            // Name and Phone
-            Column {
-                Text(
-                    text = worker.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                if (worker.phoneNumber.isNotEmpty()) {
+                // Avatar Circle
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(avatarBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = worker.phoneNumber,
-                        fontSize = 14.sp,
-                        color = Color.DarkGray
+                        text = initial,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
                     )
                 }
+                    
+                Spacer(modifier = Modifier.width(16.dp))
+                    
+                // Name and Phone
+                Column {
+                    Text(
+                        text = worker.name,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    if (worker.phoneNumber.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = worker.phoneNumber,
+                            fontSize = 15.sp,
+                            color = Color(0xFF4B5563)
+                        )
+                    }
+                }
+            }
+            if (showDivider) {
+                HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
     }
