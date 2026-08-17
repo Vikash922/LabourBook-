@@ -200,6 +200,22 @@ object FirebaseAuthHelper {
     }
 
     /**
+     * Sends a password reset email using Firebase Auth.
+     */
+    suspend fun resetPassword(context: Context, email: String): Result<Unit> {
+        return try {
+            if (isFirebaseInitialized(context)) {
+                FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Firebase is not initialized. Please connect google-services.json."))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Attempts to query device accounts registered on Android
      */
     fun getDeviceAccounts(context: Context): List<String> {

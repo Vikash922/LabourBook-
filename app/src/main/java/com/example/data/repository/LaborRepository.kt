@@ -75,7 +75,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Loads the active logged-in Google Account session and restores data from local store or Google Drive.
+     * Loads the active logged-in Google Account session and restores data from local store or Cloud.
      */
     private fun loadActiveSession() {
         if (prefs == null) return
@@ -88,8 +88,8 @@ class LaborRepository(private val context: Context? = null) {
         val appLock = prefs.getBoolean("app_lock", false)
         val language = prefs.getString("app_language", "English") ?: "English"
         val authProvider = prefs.getString("auth_provider", "None") ?: "None"
-        val lastDriveTime = prefs.getString("last_drive_time", "Never") ?: "Never"
-        val lastDriveFile = prefs.getString("last_drive_file", "") ?: ""
+        val lastCloudTime = prefs.getString("last_cloud_time", "Never") ?: "Never"
+        val lastCloudFile = prefs.getString("last_cloud_file", "") ?: ""
 
         val profile = UserProfile(
             name = name,
@@ -102,11 +102,11 @@ class LaborRepository(private val context: Context? = null) {
             isCloudSyncEnabled = true,
             isLoggedIn = isLoggedIn,
             authProvider = authProvider,
-            lastDriveBackupTime = lastDriveTime,
-            lastDriveBackupFile = lastDriveFile
+            lastCloudBackupTime = lastCloudTime,
+            lastCloudBackupFile = lastCloudFile
         )
         _userProfile.value = profile
-        _lastBackupStatus.value = if (lastDriveTime != "Never") "Last backup: $lastDriveTime" else "Last backup: Never"
+        _lastBackupStatus.value = if (lastCloudTime != "Never") "Last backup: $lastCloudTime" else "Last backup: Never"
 
         if (isLoggedIn && email.isNotBlank()) {
             loadUserDataForAccount(email)
@@ -117,7 +117,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Loads data specific to this Google account. Automatically checks Google Drive & Cloud for existing backups.
+     * Loads data specific to this Google account. Automatically checks Cloud for existing backups.
      */
     private fun loadUserDataForAccount(email: String) {
         var dataLoaded = false
@@ -140,7 +140,7 @@ class LaborRepository(private val context: Context? = null) {
                     _userProfile.value = _userProfile.value.copy(
                         businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
                         name = localData.userProfile.name.ifBlank { _userProfile.value.name },
-                        lastDriveBackupTime = localData.backupTimestamp
+                        lastCloudBackupTime = localData.backupTimestamp
                     )
                 }
                 _lastBackupStatus.value = "Last backup: ${localData.backupTimestamp} • ${localData.totalWorkers} workers restored"
@@ -148,10 +148,10 @@ class LaborRepository(private val context: Context? = null) {
             }
         }
 
-        // 2. Automatic Restore from Google Drive Cloud:
-        // If local data is missing or empty (e.g. fresh installation / Clear App Data), fetch from Google Drive & Firestore
+        // 2. Automatic Restore from Cloud:
+        // If local data is missing or empty (e.g. fresh installation / Clear App Data), fetch from Cloud & Firestore
         if (!dataLoaded || (_workers.value.isEmpty() && _transactions.value.isEmpty())) {
-            _lastBackupStatus.value = "Restoring backup from Google Drive..."
+            _lastBackupStatus.value = "Restoring backup from Cloud..."
             repositoryScope.launch {
                 val cloudResult = if (context != null) {
                     com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
@@ -166,7 +166,7 @@ class LaborRepository(private val context: Context? = null) {
                         _userProfile.value = _userProfile.value.copy(
                             businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
                             name = backupData.userProfile.name.ifBlank { _userProfile.value.name },
-                            lastDriveBackupTime = backupData.backupTimestamp
+                            lastCloudBackupTime = backupData.backupTimestamp
                         )
                         persistProfile()
                     }
@@ -191,8 +191,8 @@ class LaborRepository(private val context: Context? = null) {
             putString("user_email", p.email)
             putString("app_language", p.language)
             putString("auth_provider", p.authProvider)
-            putString("last_drive_time", p.lastDriveBackupTime)
-            putString("last_drive_file", p.lastDriveBackupFile)
+            putString("last_cloud_time", p.lastCloudBackupTime)
+            putString("last_cloud_file", p.lastCloudBackupFile)
             apply()
         }
     }
@@ -247,9 +247,9 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Explicitly triggers a Google Drive backup upload for this user.
+     * Explicitly triggers a Cloud backup upload for this user.
      */
-    suspend fun createDriveBackup(): Result<com.example.data.cloud.CloudBackupRecord> {
+    suspend fun backupToCloud(): Result<com.example.data.cloud.CloudBackupRecord> {
         _isCloudSyncing.value = true
         _lastBackupStatus.value = "Backing up..."
 
@@ -259,7 +259,7 @@ class LaborRepository(private val context: Context? = null) {
 
         if (res.isSuccess) {
             _userProfile.value = _userProfile.value.copy(
-                lastDriveBackupTime = timestamp
+                lastCloudBackupTime = timestamp
             )
             _lastBackupStatus.value = "Backup successful ($timestamp)"
             persistProfile()
@@ -277,7 +277,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Explicitly triggers a download and restore from Google Drive & Cloud.
+     * Explicitly triggers a download and restore from Cloud.
      */
     suspend fun restoreFromCloud(): Result<com.example.data.cloud.BackupData> {
         _isCloudSyncing.value = true
@@ -304,7 +304,7 @@ class LaborRepository(private val context: Context? = null) {
 
     /**
      * Switches the active session to a verified Google Account.
-     * Automatically queries Google Drive to restore any previous backup for that account.
+     * Automatically queries Cloud to restore any previous backup for that account.
      */
     fun loginWithGoogleAccount(
         name: String,
@@ -334,7 +334,7 @@ class LaborRepository(private val context: Context? = null) {
             try {
                 var hasRestored = false
 
-                // 1. Query Google Drive & Cloud Firestore first (Cloud is the primary source of truth per email)
+                // 1. Query Cloud Firestore first (Cloud is the primary source of truth per email)
                 val cloudRes = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
                 cloudRes.onSuccess { backupData ->
                     if (backupData.totalWorkers > 0 || backupData.totalTransactions > 0) {
@@ -344,7 +344,7 @@ class LaborRepository(private val context: Context? = null) {
                             _userProfile.value = _userProfile.value.copy(
                                 businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
                                 name = backupData.userProfile.name.ifBlank { verifiedName },
-                                lastDriveBackupTime = backupData.backupTimestamp
+                                lastCloudBackupTime = backupData.backupTimestamp
                             )
                             persistProfile()
                         }
@@ -369,7 +369,7 @@ class LaborRepository(private val context: Context? = null) {
                             _userProfile.value = _userProfile.value.copy(
                                 businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
                                 name = localData.userProfile.name.ifBlank { verifiedName },
-                                lastDriveBackupTime = localData.backupTimestamp
+                                lastCloudBackupTime = localData.backupTimestamp
                             )
                             persistProfile()
                         }
@@ -429,7 +429,7 @@ class LaborRepository(private val context: Context? = null) {
                 if (localDeep.userProfile != null) {
                     _userProfile.value = _userProfile.value.copy(
                         businessName = localDeep.userProfile.businessName.ifBlank { _userProfile.value.businessName },
-                        lastDriveBackupTime = localDeep.backupTimestamp
+                        lastCloudBackupTime = localDeep.backupTimestamp
                     )
                     persistProfile()
                 }
@@ -445,7 +445,7 @@ class LaborRepository(private val context: Context? = null) {
                     _workers.value = cData.workers
                     _transactions.value = cData.transactions
                     persistLocalData(syncToCloud = false)
-                    return@withContext Result.success("Cloud Scan Success! Restored ${cData.totalWorkers} workers and ${cData.totalTransactions} cash records from Google Drive Cloud.")
+                    return@withContext Result.success("Cloud Scan Success! Restored ${cData.totalWorkers} workers and ${cData.totalTransactions} cash records from Cloud.")
                 }
             }
 
@@ -454,7 +454,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Creates a guaranteed Google Drive backup before logging out.
+     * Creates a guaranteed Cloud backup before logging out.
      */
     suspend fun backupAndLogout(): Result<String> {
         return try {
@@ -479,7 +479,7 @@ class LaborRepository(private val context: Context? = null) {
             _transactions.value = emptyList()
             _lastBackupStatus.value = "Logged out"
 
-            Result.success("Backup to Google Drive complete. Logged out safely.")
+            Result.success("Backup to Cloud complete. Logged out safely.")
         } catch (e: Exception) {
             _userProfile.value = _userProfile.value.copy(
                 isLoggedIn = false,
@@ -732,10 +732,10 @@ class LaborRepository(private val context: Context? = null) {
         persistProfile()
     }
 
-    fun updateDriveBackupInfo(time: String, fileName: String) {
+    fun updateCloudBackupInfo(time: String, fileName: String) {
         _userProfile.value = _userProfile.value.copy(
-            lastDriveBackupTime = time,
-            lastDriveBackupFile = fileName
+            lastCloudBackupTime = time,
+            lastCloudBackupFile = fileName
         )
         persistProfile()
     }
@@ -749,7 +749,7 @@ class LaborRepository(private val context: Context? = null) {
                 name = backupData.userProfile.name.ifBlank { _userProfile.value.name },
                 businessName = backupData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
                 mobile = backupData.userProfile.mobile.ifBlank { _userProfile.value.mobile },
-                lastDriveBackupTime = backupData.backupTimestamp
+                lastCloudBackupTime = backupData.backupTimestamp
             )
         }
         persistProfile()

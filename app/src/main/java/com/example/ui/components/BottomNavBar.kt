@@ -1,4 +1,5 @@
 package com.example.ui.components
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,7 +43,7 @@ fun LaborbookBottomNav(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().navigationBarsPadding(),
         color = Color.White,
         shadowElevation = 8.dp
     ) {

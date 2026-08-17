@@ -107,7 +107,7 @@ fun SettingsScreen(
     val lang = userProfile.language
 
     var showLanguageDialog by remember { mutableStateOf(false) }
-    var showDriveBackupSheet by remember { mutableStateOf(false) }
+    var showCloudBackupSheet by remember { mutableStateOf(false) }
     var showCsvOptionsSheet by remember { mutableStateOf(false) }
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
@@ -118,18 +118,6 @@ fun SettingsScreen(
     var isRestoring by remember { mutableStateOf(false) }
 
     // File picker launcher to import from Cloud / Files
-    val driveFilePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            viewModel.restoreFromGoogleDriveUri(context, uri) { success, msg ->
-                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                if (success) {
-                    showDriveBackupSheet = false
-                }
-            }
-        }
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -279,7 +267,7 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showDriveBackupSheet = true }
+                            .clickable { showCloudBackupSheet = true }
                             .padding(horizontal = 14.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -386,13 +374,7 @@ fun SettingsScreen(
                         onClick = { showCsvOptionsSheet = true }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
-                        icon = Icons.Default.FileDownload,
-                        title = "Import Backup File",
-                        subtitle = "Restore data from a .CSV or .JSON file on phone",
-                        iconTint = LaborBlue,
-                        onClick = { driveFilePicker.launch("*/*") }
-                    )
+                    
                 }
             }
 
@@ -402,20 +384,20 @@ fun SettingsScreen(
                     SettingsRowItem(
                         icon = Icons.Default.Policy,
                         title = AppStrings.get("privacy_policy", lang),
-                        onClick = { Toast.makeText(context, "Opening Privacy Policy", Toast.LENGTH_SHORT).show() }
+                        onClick = { viewModel.showMessage("Opening Privacy Policy") }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
                     SettingsRowItem(
                         icon = Icons.Default.PictureAsPdf,
                         title = AppStrings.get("terms_conditions", lang),
-                        onClick = { Toast.makeText(context, "Opening Terms & Conditions", Toast.LENGTH_SHORT).show() }
+                        onClick = { viewModel.showMessage("Opening Terms & Conditions") }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
                     SettingsRowItem(
                         icon = Icons.Default.StarRate,
                         title = AppStrings.get("rating_feedback", lang),
                         iconTint = Color(0xFFF59E0B),
-                        onClick = { Toast.makeText(context, "Thank you for rating Laborbook!", Toast.LENGTH_SHORT).show() }
+                        onClick = { viewModel.showMessage("Thank you for rating Laborbook!") }
                     )
                 }
             }
@@ -496,88 +478,13 @@ fun SettingsScreen(
 
     // Cloud Backup & Restore Bottom Sheet
     var backupRefreshKey by remember { mutableStateOf(0) }
-    var backupToRestoreConfirm by remember { mutableStateOf<BackupMetadata?>(null) }
+    
 
-    if (backupToRestoreConfirm != null) {
-        val target = backupToRestoreConfirm!!
-        AlertDialog(
-            onDismissRequest = { backupToRestoreConfirm = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Restore,
-                        contentDescription = null,
-                        tint = LaborBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Restore Backup?", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Restore records from this snapshot?",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = LaborTextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text("📅 Snapshot: ${target.dateString}", fontSize = 12.sp, color = LaborTextPrimary)
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text("👥 Workers: ${target.workerCount}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = LaborBlue)
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text("💵 Cash Entries: ${target.transactionCount}", fontSize = 12.sp, color = LaborTextSecondary)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "All worker wages, attendance history, and cash transactions will be restored to this device.",
-                        fontSize = 12.sp,
-                        color = LaborTextSecondary,
-                        lineHeight = 16.sp
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val file = target.file
-                        if (file != null) {
-                            viewModel.restoreFromLocalBackup(file) { success, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                                backupRefreshKey++
-                                backupToRestoreConfirm = null
-                                if (success) showDriveBackupSheet = false
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Confirm Restore", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { backupToRestoreConfirm = null }) {
-                    Text("Cancel", color = LaborTextSecondary)
-                }
-            }
-        )
-    }
-
-    if (showDriveBackupSheet) {
+    if (showCloudBackupSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
         ModalBottomSheet(
-            onDismissRequest = { showDriveBackupSheet = false },
+            onDismissRequest = { showCloudBackupSheet = false },
             sheetState = sheetState,
             containerColor = Color.White,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
@@ -639,10 +546,10 @@ fun SettingsScreen(
                         onClick = {
                             if (!isBackingUp) {
                                 isBackingUp = true
-                                viewModel.backupToGoogleDrive(context) { success, msg ->
+                                viewModel.backupToCloudNow() { success, msg ->
                                     isBackingUp = false
                                     backupRefreshKey++
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    viewModel.showMessage(msg)
                                 }
                             }
                         }
@@ -661,8 +568,8 @@ fun SettingsScreen(
                                 viewModel.restoreFromCloudNow { success, msg ->
                                     isRestoring = false
                                     backupRefreshKey++
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    if (success) showDriveBackupSheet = false
+                                    viewModel.showMessage(msg)
+                                    if (success) showCloudBackupSheet = false
                                 }
                             }
                         }
@@ -670,26 +577,6 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                SettingsGroupCard(title = "Local File Actions") {
-                    SettingsRowItem(
-                        icon = Icons.Default.Share,
-                        title = "Share .CSV Backup",
-                        subtitle = "Export data for Excel/WhatsApp",
-                        iconTint = Color(0xFF64748B),
-                        onClick = { viewModel.exportAndShareBackupCsv(context) }
-                    )
-
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-
-                    SettingsRowItem(
-                        icon = Icons.Default.FileDownload,
-                        title = "Import from File",
-                        subtitle = "Restore from a saved file",
-                        iconTint = Color(0xFF64748B),
-                        onClick = { driveFilePicker.launch("*/*") }
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(32.dp))
             }
@@ -735,7 +622,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         isLoggingOut = true
-                        viewModel.logoutWithDriveBackup { success, msg ->
+                        viewModel.logoutWithCloudBackup { success, msg ->
                             isLoggingOut = false
                             showLogoutConfirmDialog = false
                         }
@@ -787,7 +674,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     viewModel.setLanguage(languageName)
-                                    Toast.makeText(context, "Language changed to $languageName", Toast.LENGTH_SHORT).show()
+                                    viewModel.showMessage("Language changed to $languageName")
                                     showLanguageDialog = false
                                 }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
@@ -939,7 +826,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         viewModel.saveCsvBackupToDevice(context) { success, msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            viewModel.showMessage(msg)
                             if (success) showCsvOptionsSheet = false
                         }
                     },
@@ -972,7 +859,7 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.exportAndShareBackupCsv(context) { success, msg ->
                             if (!success) {
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                viewModel.showMessage(msg)
                             }
                         }
                         showCsvOptionsSheet = false

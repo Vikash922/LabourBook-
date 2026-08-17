@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.BackupMetadata
 import com.example.data.cloud.CloudSyncService
 import com.example.data.cloud.CompactCsvBackupService
-import com.example.data.cloud.GoogleDriveBackupService
 import com.example.data.model.AttendanceStatus
 import com.example.data.model.CashTransaction
 import com.example.data.model.LaborWorker
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed class Screen {
+    data object Splash : Screen()
     data object Login : Screen()
     data object LaborHome : Screen()
     data object AddLabor : Screen()
@@ -70,16 +70,23 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         checkFirebaseAutoLogin(isStartup = true)
     }
 
-    private fun resolveInitialScreen(): Screen {
-        // If already logged in locally or Firebase user session exists
+    fun onSplashFinished() {
         if (repository.userProfile.value.isLoggedIn) {
-            return Screen.LaborHome
+            _currentScreen.value = Screen.LaborHome
+            _selectedTabIndex.value = 0
+        } else {
+            val currentFirebaseUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser(getApplication())
+            if (currentFirebaseUser != null && !currentFirebaseUser.email.isNullOrBlank()) {
+                _currentScreen.value = Screen.LaborHome
+                _selectedTabIndex.value = 0
+            } else {
+                _currentScreen.value = Screen.Login
+            }
         }
-        val currentFirebaseUser = com.example.data.cloud.FirebaseAuthHelper.getCurrentFirebaseUser(getApplication())
-        if (currentFirebaseUser != null && !currentFirebaseUser.email.isNullOrBlank()) {
-            return Screen.LaborHome
-        }
-        return Screen.Login
+    }
+
+    private fun resolveInitialScreen(): Screen {
+        return Screen.Splash
     }
 
     /**
@@ -98,8 +105,8 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
                     mobile = repository.userProfile.value.mobile
                 )
             }
-            // Only switch screen to LaborHome if starting up or currently on the Login screen
-            if (isStartup || _currentScreen.value is Screen.Login) {
+            // Only switch screen to LaborHome if currently on the Login screen
+            if (_currentScreen.value is Screen.Login) {
                 _currentScreen.value = Screen.LaborHome
                 _selectedTabIndex.value = 0
             }
@@ -170,6 +177,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     fun navigateTo(screen: Screen) {
         _currentScreen.value = screen
         when (screen) {
+            is Screen.Splash -> _selectedTabIndex.value = 0
             is Screen.Login -> _selectedTabIndex.value = 0
             is Screen.LaborHome, is Screen.AddLabor, is Screen.LaborDetail, is Screen.LaborReport -> _selectedTabIndex.value = 0
             is Screen.CashBook, is Screen.CashBookReport -> _selectedTabIndex.value = 1
@@ -282,7 +290,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     fun restoreFromSafetyBackup(onComplete: ((Boolean, String) -> Unit)? = null) {
         viewModelScope.launch {
             val email = userProfile.value.email
-            val safetyBackup = GoogleDriveBackupService.getLatestBackupForUser(getApplication(), email)
+            val safetyBackup: com.example.data.cloud.BackupData? = null
             if (safetyBackup != null && (safetyBackup.workers.isNotEmpty() || safetyBackup.transactions.isNotEmpty())) {
                 repository.restoreData(safetyBackup)
                 _syncMessage.value = "Restored ${safetyBackup.totalWorkers} workers from safety snapshot"
@@ -377,6 +385,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearSyncMessage() {
         _syncMessage.value = null
+    }
+
+    fun showMessage(msg: String) {
+        _syncMessage.value = msg
     }
 
     fun getDeviceAccounts(context: android.content.Context): List<String> {
@@ -511,11 +523,11 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Explicitly triggers an immediate Google Drive & Cloud backup upload.
+     * Explicitly triggers an immediate Cloud & Cloud backup upload.
      */
-    fun backupNow(onComplete: (Boolean, String) -> Unit) {
+    fun backupToCloudNow(onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
-            val res = repository.createDriveBackup()
+            val res = repository.backupToCloud()
             res.onSuccess { record ->
                 val statusMsg = repository.lastBackupStatus.value
                 _syncMessage.value = statusMsg
@@ -529,7 +541,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Explicitly downloads and restores the latest snapshot from Google Drive & Cloud.
+     * Explicitly downloads and restores the latest snapshot from Cloud & Cloud.
      */
     fun restoreFromCloudNow(onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
@@ -547,39 +559,20 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Automatic Backup on Logout:
-     * Saves/updates the latest Google Drive backup for this specific account, then logs out.
+     * Saves/updates the latest Cloud backup for this specific account, then logs out.
      */
-    fun logoutWithDriveBackup(onComplete: (Boolean, String) -> Unit) {
+    fun logoutWithCloudBackup(onComplete: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             _isLoggingOut.value = true
             val result = repository.backupAndLogout()
             _isLoggingOut.value = false
             _currentScreen.value = Screen.Login
             _selectedTabIndex.value = 0
-            onComplete(true, result.getOrNull() ?: "Backed up to Google Drive & Logged out.")
+            onComplete(true, result.getOrNull() ?: "Backed up to Cloud & Logged out.")
         }
     }
 
-    // Google Drive Backup & Restore Methods
-    fun backupToGoogleDrive(context: android.content.Context, onComplete: (Boolean, String) -> Unit) { onComplete(true, "Cloud Sync Successful") }
-
-    fun getGoogleDriveBackups(context: android.content.Context): List<BackupMetadata> {
-        return GoogleDriveBackupService.getAvailableBackupsForUser(context, userProfile.value.email)
-    }
-
-    fun restoreFromGoogleDriveUri(context: android.content.Context, uri: android.net.Uri, onComplete: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val result = GoogleDriveBackupService.readBackupFromUri(context, uri)
-            result.onSuccess { backupData ->
-                repository.restoreData(backupData)
-                repository.updateDriveBackupInfo(backupData.backupTimestamp, "Imported from Drive")
-                _syncMessage.value = "Data imported from Google Drive (${backupData.totalWorkers} workers, ${backupData.totalTransactions} transactions)."
-                onComplete(true, "Successfully restored ${backupData.totalWorkers} workers and ${backupData.totalTransactions} transactions from Google Drive backup!")
-            }.onFailure { err ->
-                onComplete(false, err.message ?: "Failed to parse Google Drive backup file.")
-            }
-        }
-    }
+    // Cloud Backup & Restore Methods
 
     fun exportAndShareBackupCsv(context: android.content.Context, onComplete: ((Boolean, String) -> Unit)? = null) {
         val result = CompactCsvBackupService.shareBackupCsvFile(
@@ -634,55 +627,6 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun restoreLatestAvailableBackup(context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            try {
-                val backups = getGoogleDriveBackups(context)
-                if (backups.isEmpty()) {
-                    onComplete(false, "No previous Google Drive or local backups found.")
-                    return@launch
-                }
-                // Find latest backup that contains data or the newest snapshot
-                val target = backups.firstOrNull { it.workerCount > 0 && it.file != null } ?: backups.firstOrNull { it.file != null }
-                if (target == null || target.file == null) {
-                    onComplete(false, "No valid backup file found.")
-                    return@launch
-                }
-
-                val content = target.file.readText()
-                val result = GoogleDriveBackupService.parseBackupUniversal(content)
-                result.onSuccess { backupData ->
-                    repository.restoreData(backupData)
-                    repository.updateDriveBackupInfo(backupData.backupTimestamp, target.fileName)
-                    _syncMessage.value = "Restored ${backupData.totalWorkers} workers from ${target.dateString}"
-                    onComplete(true, "Successfully restored ${backupData.totalWorkers} workers and ${backupData.totalTransactions} transactions from ${target.dateString}!")
-                }.onFailure { err ->
-                    onComplete(false, err.message ?: "Failed to read backup.")
-                }
-            } catch (e: Exception) {
-                onComplete(false, e.message ?: "Failed to restore latest backup.")
-            }
-        }
-    }
-
-    fun restoreFromLocalBackup(backupFile: java.io.File, onComplete: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            try {
-                val content = backupFile.readText()
-                val result = GoogleDriveBackupService.parseBackupUniversal(content)
-                result.onSuccess { backupData ->
-                    repository.restoreData(backupData)
-                    repository.updateDriveBackupInfo(backupData.backupTimestamp, backupFile.name)
-                    _syncMessage.value = "Data restored (${backupData.totalWorkers} workers, ${backupData.totalTransactions} transactions)."
-                    onComplete(true, "Restored ${backupData.totalWorkers} workers, all attendance logs, and ${backupData.totalTransactions} transactions from ${backupFile.name}.")
-                }.onFailure { err ->
-                    onComplete(false, err.message ?: "Failed to read backup file.")
-                }
-            } catch (e: Exception) {
-                onComplete(false, e.message ?: "Error reading backup file.")
-            }
-        }
-    }
 
     fun shareWorkerReport(worker: LaborWorker) {
         PdfReportGenerator.shareWorkerReportPdf(getApplication(), worker, selectedMonth.value)
@@ -694,5 +638,20 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     fun shareBatchRoster() {
         PdfReportGenerator.shareBatchWorkersReportPdf(getApplication(), workers.value, selectedMonth.value)
+    }
+
+    fun resetPassword(context: android.content.Context, email: String) {
+        if (email.isBlank() || !email.contains("@")) {
+            showMessage("Please enter a valid email to reset your password")
+            return
+        }
+        viewModelScope.launch {
+            val result = com.example.data.cloud.FirebaseAuthHelper.resetPassword(context, email)
+            if (result.isSuccess) {
+                showMessage("Password reset link sent to your email")
+            } else {
+                showMessage("Failed to send reset link: ${result.exceptionOrNull()?.message ?: "Unknown error"}")
+            }
+        }
     }
 }

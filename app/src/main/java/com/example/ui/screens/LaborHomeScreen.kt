@@ -203,8 +203,8 @@ fun LaborHomeScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable {
-                                viewModel.backupNow { _, msg ->
-                                    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                viewModel.backupToCloudNow { _, msg ->
+                                    viewModel.showMessage(msg)
                                 }
                             }
                         ) {
@@ -270,9 +270,7 @@ fun LaborHomeScreen(
                     EmptyLaborStateCard(
                         onAddLaborClick = { viewModel.navigateTo(Screen.AddLabor) },
                         onRestoreClick = {
-                            viewModel.restoreFromSafetyBackup { success, msg ->
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                            }
+                            viewModel.restoreFromSafetyBackup()
                         },
                         lastDeletedWorkerName = lastDeletedWorker?.name,
                         onUndoClick = { viewModel.undoDeleteWorker() },
@@ -280,36 +278,25 @@ fun LaborHomeScreen(
                     )
                 }
             } else {
-                item {
+                items(workers, key = { it.id }) { worker ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Column {
-                            workers.forEachIndexed { index, worker ->
-                                val isFirst = index == 0
-                                val isLast = index == workers.lastIndex
-                                val shape = when {
-                                    isFirst && isLast -> RoundedCornerShape(16.dp)
-                                    isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                                    isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-                                    else -> androidx.compose.ui.graphics.RectangleShape
-                                }
-                                
-                                com.example.ui.components.LaborWorkerCard(
-                                    worker = worker,
-                                    onCardClick = { viewModel.navigateTo(Screen.LaborDetail(worker.id)) },
-                                    shape = shape,
-                                    showDivider = !isLast
-                                )
-                            }
-                        }
+                        com.example.ui.components.LaborWorkerCard(
+                            worker = worker,
+                            onCardClick = { viewModel.navigateTo(Screen.LaborDetail(worker.id)) },
+                            shape = RoundedCornerShape(16.dp),
+                            showDivider = false
+                        )
                     }
                 }
+                item { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }

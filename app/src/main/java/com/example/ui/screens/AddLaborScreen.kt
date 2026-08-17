@@ -120,9 +120,9 @@ fun AddLaborScreen(
         hasContactPermission = isGranted
         if (isGranted) {
             viewModel.refreshContacts(context)
-            Toast.makeText(context, "Contacts loaded successfully", Toast.LENGTH_SHORT).show()
+            viewModel.showMessage("Contacts loaded successfully")
         } else {
-            Toast.makeText(context, "Contact permission not granted. You can still add labors manually.", Toast.LENGTH_SHORT).show()
+            viewModel.showMessage("Contact permission not granted. You can still add labors manually.")
         }
     }
 
@@ -220,7 +220,7 @@ fun AddLaborScreen(
                             onClick = {
                                 if (hasContactPermission) {
                                     viewModel.refreshContacts(context)
-                                    Toast.makeText(context, "Contacts refreshed", Toast.LENGTH_SHORT).show()
+                                    viewModel.showMessage("Contacts refreshed")
                                 } else {
                                     permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                                 }
@@ -468,7 +468,7 @@ fun AddLaborScreen(
                                     onClick = {
                                         val success = viewModel.addLaborFromForm()
                                         if (success) {
-                                            Toast.makeText(context, "Labor added successfully", Toast.LENGTH_SHORT).show()
+                                            viewModel.showMessage("Labor added successfully")
                                         }
                                     },
                                     enabled = isFormValid,
@@ -711,7 +711,7 @@ fun AddLaborScreen(
                     onClick = {
                         val wage = contactDailyWage.toDoubleOrNull() ?: 800.0
                         viewModel.addLaborFromContact(contact.copy())
-                        Toast.makeText(context, "Added ${contact.name} to labors list!", Toast.LENGTH_SHORT).show()
+                        viewModel.showMessage("Added ${contact.name} to labors list!")
                         selectedContactForAdd = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)

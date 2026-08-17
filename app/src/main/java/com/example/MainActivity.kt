@@ -12,9 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -24,6 +28,22 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Info
 import com.example.ui.components.LaborbookBottomNav
 import com.example.ui.screens.AddLaborScreen
 import com.example.ui.screens.BatchPdfHubScreen
@@ -34,6 +54,7 @@ import com.example.ui.screens.LaborHomeScreen
 import com.example.ui.screens.LaborReportScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SplashScreen
 import com.example.ui.theme.LaborbookTheme
 import com.example.ui.viewmodel.LaborViewModel
 import com.example.ui.viewmodel.Screen
@@ -65,6 +86,15 @@ fun LaborbookApp(viewModel: LaborViewModel) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val selectedTab by viewModel.selectedTabIndex.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val syncMessage by viewModel.syncMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(syncMessage) {
+        syncMessage?.let { msg ->
+            snackbarHostState.showSnackbar(message = msg)
+            viewModel.clearSyncMessage()
+        }
+    }
 
     val isRootTabScreen = currentScreen is Screen.LaborHome ||
             currentScreen is Screen.CashBook ||
@@ -87,6 +117,33 @@ fun LaborbookApp(viewModel: LaborViewModel) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { 
+            SnackbarHost(snackbarHostState) { data ->
+                Row(
+                    modifier = Modifier
+                        .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth()
+                        .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = com.example.ui.theme.LaborBlue, spotColor = com.example.ui.theme.LaborBlue)
+                        .background(Color(0xFF1E293B), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = "Notification",
+                        tint = com.example.ui.theme.LaborWarning,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        text = data.visuals.message,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        },
         bottomBar = {
             if (isRootTabScreen) {
                 LaborbookBottomNav(
@@ -143,6 +200,7 @@ fun LaborbookApp(viewModel: LaborViewModel) {
                 }
             ) { screen ->
                 when (screen) {
+                    is Screen.Splash -> SplashScreen(onFinished = { viewModel.onSplashFinished() })
                     is Screen.Login -> LoginScreen(viewModel = viewModel)
                     is Screen.LaborHome -> LaborHomeScreen(viewModel = viewModel)
                     is Screen.AddLabor -> AddLaborScreen(viewModel = viewModel)

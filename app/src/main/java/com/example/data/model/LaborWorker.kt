@@ -159,6 +159,6 @@ data class UserProfile(
     val isCloudSyncEnabled: Boolean = true,
     val isLoggedIn: Boolean = false,
     val authProvider: String = "None",
-    val lastDriveBackupTime: String = "Never",
-    val lastDriveBackupFile: String = ""
+    val lastCloudBackupTime: String = "Never",
+    val lastCloudBackupFile: String = ""
 )

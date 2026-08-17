@@ -174,7 +174,7 @@ fun BatchPdfHubScreen(
                         iconTint = Color(0xFF059669),
                         onClick = {
                             viewModel.saveCsvBackupToDevice(context) { success, msg ->
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                viewModel.showMessage(msg)
                             }
                         }
                     )

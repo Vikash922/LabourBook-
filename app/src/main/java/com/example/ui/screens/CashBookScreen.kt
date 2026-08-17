@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -31,6 +33,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -167,7 +171,7 @@ fun CashBookScreen(
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = Color(0xFFF3F4F6),
-                            border = BorderStroke(1.dp, LaborDivider),
+                            border = BorderStroke(1.dp, Color(0xFF9CA3AF)),
                             modifier = Modifier
                                 .clickable { showMonthDialog = true }
                                 .testTag("cashbook_month_selector_pill")
@@ -280,7 +284,7 @@ fun CashBookScreen(
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = LaborBlue,
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
+                            unfocusedBorderColor = Color(0xFF9CA3AF),
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White
                         )
@@ -296,7 +300,7 @@ fun CashBookScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                        border = BorderStroke(1.dp, Color(0xFF9CA3AF))
                     ) {
                         Column(
                             modifier = Modifier
@@ -419,123 +423,129 @@ fun CashBookScreen(
                         }
                     }
                 } else {
-                    // Header Row
+                    // Entire Table in one Card
                     item {
                         Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.White
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                ,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFF9CA3AF))
                         ) {
                             Column {
+                                // Header Row
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        .height(IntrinsicSize.Min),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = AppStrings.get("date", lang),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
                                         color = Color.Black,
-                                        modifier = Modifier.weight(1.2f),
+                                        modifier = Modifier.weight(0.25f).padding(vertical = 12.dp),
                                         textAlign = TextAlign.Center
                                     )
+                                    VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
                                         text = AppStrings.get("notes", lang),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
                                         color = Color.Black,
-                                        modifier = Modifier.weight(2f)
+                                        modifier = Modifier.weight(0.45f).padding(horizontal = 12.dp, vertical = 12.dp)
                                     )
+                                    VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
                                         text = AppStrings.get("amount", lang),
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.Black,
-                                        modifier = Modifier.weight(1.4f)
-                                    )
-                                }
-                                HorizontalDivider(color = LaborDivider, thickness = 0.5.dp)
-                            }
-                        }
-                    }
-
-                    items(displayTransactions, key = { it.id }) { tx ->
-                        Surface(
-                            color = Color.White,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.openTransactionDetail(tx) }
-                                .testTag("tx_row_${tx.id}")
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Date Column
-                                Column(
-                                    modifier = Modifier.weight(1.2f),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    val parts = tx.dateDisplay.split(" ")
-                                    val dayPart = parts.firstOrNull() ?: "15"
-                                    val weekPart = parts.getOrNull(1) ?: "Sat"
-
-                                    Text(
-                                        text = dayPart,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborTextPrimary
-                                    )
-                                    Text(
-                                        text = weekPart,
-                                        fontSize = 11.sp,
-                                        color = LaborTextSecondary
-                                    )
-                                }
-
-                                // Notes & Payment Method Caption
-                                Column(modifier = Modifier.weight(2f)) {
-                                    Text(
-                                        text = tx.notes.ifBlank { if (tx.type == TransactionType.CASH_IN) "Income" else "Expense" },
                                         fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborTextPrimary
-                                    )
-                                    Text(
-                                        text = tx.paymentMethod.name,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = LaborTextSecondary
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.Black,
+                                        modifier = Modifier.weight(0.3f).padding(horizontal = 12.dp, vertical = 12.dp),
+                                        textAlign = TextAlign.Center
                                     )
                                 }
+                                
+                                // Items
+                                displayTransactions.forEachIndexed { index, tx ->
+                                    HorizontalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { viewModel.openTransactionDetail(tx) }
+                                            .testTag("tx_row_${tx.id}")
+                                            .height(IntrinsicSize.Min),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Date Column
+                                        Column(
+                                            modifier = Modifier.weight(0.25f).padding(vertical = 12.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            val parts = tx.dateDisplay.split(" ")
+                                            val dayPart = parts.firstOrNull() ?: "15"
+                                            val weekPart = parts.getOrNull(1) ?: "Sat"
 
-                                // ₹ Amount + Chevron
-                                Row(
-                                    modifier = Modifier.weight(1.4f),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "₹ ${tx.amount.toInt()}",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (tx.type == TransactionType.CASH_IN) LaborSuccess else LaborError
-                                    )
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = LaborTextHint,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                            Text(
+                                                text = dayPart,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.Black
+                                            )
+                                            Text(
+                                                text = weekPart,
+                                                fontSize = 12.sp,
+                                                color = LaborTextSecondary
+                                            )
+                                        }
+
+                                        VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+
+                                        // Notes & Payment Method Caption
+                                        Column(
+                                            modifier = Modifier.weight(0.45f).padding(horizontal = 12.dp, vertical = 12.dp)
+                                        ) {
+                                            Text(
+                                                text = tx.notes.ifBlank { if (tx.type == TransactionType.CASH_IN) "Income" else "Expense" },
+                                                fontSize = 15.sp,
+                                                color = Color.Black
+                                            )
+                                            Text(
+                                                text = tx.paymentMethod.name,
+                                                fontSize = 12.sp,
+                                                color = LaborTextSecondary
+                                            )
+                                        }
+
+                                        VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+
+                                        // ₹ Amount + Chevron
+                                        Row(
+                                            modifier = Modifier.weight(0.3f).padding(horizontal = 12.dp, vertical = 12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "₹${tx.amount.toInt()}",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (tx.type == TransactionType.CASH_IN) LaborSuccess else LaborError
+                                            )
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                contentDescription = null,
+                                                tint = LaborTextHint,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
-                        HorizontalDivider(color = LaborDivider, thickness = 0.5.dp)
                     }
-
+                    
                     item { Spacer(modifier = Modifier.height(60.dp)) }
                 }
             }
