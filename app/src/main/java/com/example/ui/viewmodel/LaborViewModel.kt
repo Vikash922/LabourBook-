@@ -266,7 +266,9 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         val worker = workers.value.find { it.id == workerId }
         val name = worker?.name ?: "Worker"
         repository.deleteWorker(workerId)
+        
         _syncMessage.value = "$name deleted. Tap to UNDO."
+        
         navigateTo(Screen.LaborHome)
     }
 
@@ -302,14 +304,18 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openNewTransaction(type: TransactionType) {
+        val cal = java.util.Calendar.getInstance()
+        val fullFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val displayFormat = java.text.SimpleDateFormat("dd EEE", java.util.Locale.getDefault())
+        
         _activeTransaction.value = CashTransaction(
             id = "",
-            dateDisplay = "15 Sat",
-            fullDate = "2026-08-15",
+            dateDisplay = displayFormat.format(cal.time),
+            fullDate = fullFormat.format(cal.time),
             type = type,
             amount = 0.0,
             paymentMethod = PaymentMethod.CASH,
-            notes = if (type == TransactionType.CASH_IN) "Income" else "Material expense"
+            notes = if (type == TransactionType.CASH_IN) "Income" else "Expense"
         )
         _transactionSheetMode.value = if (type == TransactionType.CASH_IN) TransactionSheetMode.CREATE_IN else TransactionSheetMode.CREATE_OUT
     }
@@ -325,8 +331,8 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         paymentMethod: PaymentMethod,
         notes: String,
         type: TransactionType,
-        dateDisplay: String = "15 Sat",
-        fullDate: String = "2026-08-15"
+        dateDisplay: String,
+        fullDate: String
     ) {
         if (id.isBlank()) {
             repository.addTransaction(type, amount, paymentMethod, notes, dateDisplay, fullDate)

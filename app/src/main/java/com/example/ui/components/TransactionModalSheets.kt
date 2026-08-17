@@ -273,11 +273,16 @@ fun TransactionEditBottomSheet(
     var currentType by remember {
         mutableStateOf(transaction?.type ?: defaultType)
     }
+    
+    val defaultCal = remember { Calendar.getInstance() }
+    val fullFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val displayFormat = remember { SimpleDateFormat("dd EEE", Locale.getDefault()) }
+
     var selectedFullDate by remember {
-        mutableStateOf(transaction?.fullDate ?: "2026-08-15")
+        mutableStateOf(transaction?.fullDate ?: fullFormat.format(defaultCal.time))
     }
     var selectedDateDisplay by remember {
-        mutableStateOf(transaction?.dateDisplay ?: "15 Sat")
+        mutableStateOf(transaction?.dateDisplay ?: displayFormat.format(defaultCal.time))
     }
 
     // Android Calendar Date Picker

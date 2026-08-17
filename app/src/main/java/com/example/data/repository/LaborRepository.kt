@@ -240,26 +240,10 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Updates the current working file without touching the master backup file or running cloud auto-sync.
-     * Used when deleting a laborer so previous backups remain completely intact.
+     * Fallback for backwards compatibility, simply calls persistLocalData
      */
     private fun persistLocalWorkingStateOnly() {
-        autoSyncJob?.cancel() // Cancel any pending debounced auto-sync from previous taps
-        val currentEmail = _userProfile.value.email
-        if (currentEmail.isBlank()) return
-
-        val currentWorkers = _workers.value
-        val currentTransactions = _transactions.value
-        val currentProfile = _userProfile.value
-
-        fileWriteJob?.cancel()
-        fileWriteJob = repositoryScope.launch(Dispatchers.IO) {
-            try {
-                Log.d(TAG, "Working state saved (Master backup preserved) for $currentEmail (${currentWorkers.size} workers)")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error saving working state: ${e.message}", e)
-            }
-        }
+        persistLocalData(syncToCloud = true)
     }
 
     /**
@@ -614,6 +598,11 @@ class LaborRepository(private val context: Context? = null) {
         _workers.value = _workers.value.filter { it.id != workerId }
         // Save working state locally ONLY (never auto-backup or overwrite the single master backup on deletion)
         persistLocalWorkingStateOnly()
+        
+        // Immediately delete from Firebase so it doesn't linger
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.cloud.FirestoreSyncService.deleteWorker(workerId, context)
+        }
     }
 
     fun undoDeleteWorker(): Boolean {
@@ -625,6 +614,14 @@ class LaborRepository(private val context: Context? = null) {
         }
         _lastDeletedWorker.value = null
         return true
+    }
+
+    fun clearUndoCache() {
+        if (_lastDeletedWorker.value != null) {
+            _lastDeletedWorker.value = null
+            // Once the undo window expires, push the deletion to the cloud
+            persistLocalData(syncToCloud = true)
+        }
     }
 
     fun setAttendanceStatus(workerId: String, monthStr: String, dayNumber: Int, status: AttendanceStatus) {
