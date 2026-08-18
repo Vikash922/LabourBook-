@@ -834,7 +834,7 @@ fun LaborAttendanceDayRow(
                 DetailStatusChip(
                     label = "P",
                     color = LaborSuccess,
-                    isSelected = status == AttendanceStatus.PRESENT,
+                    isSelected = status == AttendanceStatus.PRESENT || status == AttendanceStatus.HALF_DAY,
                     onClick = { onStatusSelected(dayInfo.day, AttendanceStatus.PRESENT) }
                 )
 

@@ -103,6 +103,7 @@ dependencies {
   implementation(libs.firebase.ai)
   // Firestore for encrypted cloud sync:
   implementation(libs.firebase.firestore)
+  implementation(libs.firebase.analytics)
 
   // Firebase Auth and Google Sign-In via Credential Manager:
   implementation(libs.firebase.auth)

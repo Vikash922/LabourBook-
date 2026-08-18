@@ -59,12 +59,19 @@ import com.example.ui.theme.LaborbookTheme
 import com.example.ui.viewmodel.LaborViewModel
 import com.example.ui.viewmodel.Screen
 
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.FirebaseAnalytics.getInstance
+
 class MainActivity : ComponentActivity() {
     private val viewModel: LaborViewModel by viewModels()
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Initialize Firebase Analytics
+        firebaseAnalytics = getInstance(this)
         
         // Check if Firebase user is authenticated on startup and navigate to dashboard
         viewModel.checkFirebaseAutoLogin(isStartup = true)

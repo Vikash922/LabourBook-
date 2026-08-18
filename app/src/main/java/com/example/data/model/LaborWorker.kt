@@ -85,7 +85,10 @@ data class LaborWorker(
         for (rec in monthAtt.values) {
             when (rec.status) {
                 AttendanceStatus.PRESENT, AttendanceStatus.OVERTIME -> present += 1.0
-                AttendanceStatus.HALF_DAY -> present += 0.5
+                AttendanceStatus.HALF_DAY -> {
+                    present += 0.5
+                    absent += 0.5
+                }
                 AttendanceStatus.ABSENT -> absent += 1.0
                 AttendanceStatus.UNMARKED -> {}
             }

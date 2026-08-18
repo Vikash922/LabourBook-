@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     val scale = remember { Animatable(0.5f) }
@@ -62,9 +64,11 @@ fun SplashScreen(onFinished: () -> Unit) {
         ) {
             // App Logo
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_laborbook_logo_colored),
+                painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_app_logo),
                 contentDescription = "Laborbook Logo",
-                modifier = Modifier.size(140.dp)
+                modifier = Modifier
+                    .size(140.dp)
+                    .clip(CircleShape)
             )
             
             Spacer(modifier = Modifier.height(24.dp))

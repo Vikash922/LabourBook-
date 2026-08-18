@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Shield
@@ -83,6 +84,8 @@ import com.example.ui.theme.LaborTextPrimary
 import com.example.ui.theme.LaborTextSecondary
 import com.example.ui.viewmodel.LaborViewModel
 
+import com.example.data.cloud.FirebaseAuthHelper
+
 enum class AuthMode {
     SIGN_IN,
     SIGN_UP
@@ -108,6 +111,8 @@ fun LoginScreen(
     var emailErrorMessage by remember { mutableStateOf("") }
 
     var isSigningIn by remember { mutableStateOf(false) }
+
+    val isFirebaseAvailable = remember { FirebaseAuthHelper.isFirebaseInitialized(context) }
 
     val deepBlueBackground = Color(0xFF1E4665)
     val appFontFamily = FontFamily.SansSerif
@@ -137,9 +142,9 @@ fun LoginScreen(
             // Custom Image Logo
             Box(contentAlignment = Alignment.Center) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_laborbook_custom_logo),
+                    painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.ic_app_logo),
                     contentDescription = "Laborbook Logo",
-                    modifier = Modifier.size(96.dp)
+                    modifier = Modifier.size(96.dp).clip(CircleShape)
                 )
             }
 

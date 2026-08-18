@@ -29,7 +29,7 @@ object FirebaseAuthHelper {
     private const val TAG = "FirebaseAuthHelper"
 
     // Default Web Client ID (Can be injected or fallback)
-    private const val DEFAULT_SERVER_CLIENT_ID = "1027179208222-2hhdrgohaaa7ed068smm0tekptejq4k8.apps.googleusercontent.com"
+    private val DEFAULT_SERVER_CLIENT_ID = com.example.BuildConfig.WEB_CLIENT_ID
 
     fun isFirebaseInitialized(context: Context): Boolean {
         return try {
