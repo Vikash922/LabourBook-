@@ -633,8 +633,15 @@ class LaborRepository(private val context: Context? = null) {
             if (worker.id == workerId) {
                 val currentMap = worker.attendance.toMutableMap()
                 val existing = currentMap[dateKey]
-                val newStatus = if (existing?.status == status) AttendanceStatus.UNMARKED else status
-                val otHours = if (newStatus == AttendanceStatus.OVERTIME && (existing?.overtimeHours ?: 0.0) == 0.0) 2.0 else (existing?.overtimeHours ?: 0.0)
+                val isSame = existing?.status == status
+                val newStatus = if (isSame) AttendanceStatus.UNMARKED else status
+                val otHours = if (newStatus == AttendanceStatus.OVERTIME) {
+                    if ((existing?.overtimeHours ?: 0.0) <= 0.0) 2.0 else existing!!.overtimeHours
+                } else if (isSame && status == AttendanceStatus.OVERTIME) {
+                    0.0
+                } else {
+                    existing?.overtimeHours ?: 0.0
+                }
 
                 currentMap[dateKey] = DailyAttendance(
                     dayNumber = dayNumber,
@@ -663,7 +670,13 @@ class LaborRepository(private val context: Context? = null) {
                 val currentMap = worker.attendance.toMutableMap()
                 val existing = currentMap[dateKey]
                 val currentStatus = existing?.status ?: AttendanceStatus.UNMARKED
-                val finalStatus = if (otHours > 0.0 && currentStatus == AttendanceStatus.UNMARKED) AttendanceStatus.OVERTIME else currentStatus
+                val finalStatus = if (otHours > 0.0 && currentStatus == AttendanceStatus.UNMARKED) {
+                    AttendanceStatus.OVERTIME
+                } else if (otHours == 0.0 && currentStatus == AttendanceStatus.OVERTIME) {
+                    AttendanceStatus.UNMARKED
+                } else {
+                    currentStatus
+                }
 
                 currentMap[dateKey] = DailyAttendance(
                     dayNumber = dayNumber,

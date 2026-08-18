@@ -561,7 +561,7 @@ fun LaborDetailScreen(
         val dateKey = LaborCalendarHelper.getDateKey(currentYear, currentMonthNum, day)
         val dayRecord = worker.attendance[dateKey]
         val dow = LaborCalendarHelper.getDayOfWeekShort(currentYear, currentMonthNum, day)
-        var otHoursInput by remember { mutableStateOf(if ((dayRecord?.overtimeHours ?: 0.0) > 0) (dayRecord?.overtimeHours ?: 0.0).toInt().toString() else "2") }
+        var otHoursInput by remember { mutableStateOf(if ((dayRecord?.overtimeHours ?: 0.0) > 0) (if (dayRecord!!.overtimeHours % 1.0 == 0.0) dayRecord.overtimeHours.toInt().toString() else dayRecord.overtimeHours.toString()) else "2") }
 
         AlertDialog(
             onDismissRequest = { selectedDayForOvertimeDialog = null },
@@ -586,23 +586,41 @@ fun LaborDetailScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val ot = otHoursInput.toDoubleOrNull() ?: 2.0
-                        viewModel.updateDayDetails(
-                            workerId = worker.id,
-                            dayNumber = day,
-                            advance = dayRecord?.advanceAmount ?: 0.0,
-                            note = dayRecord?.note ?: "",
-                            otHours = ot,
-                            monthStr = selectedMonth
-                        )
-                        viewModel.setAttendance(worker.id, day, AttendanceStatus.OVERTIME, selectedMonth)
-                        selectedDayForOvertimeDialog = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
-                ) {
-                    Text("Save Overtime", color = Color.White)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if ((dayRecord?.overtimeHours ?: 0.0) > 0) {
+                        TextButton(
+                            onClick = {
+                                viewModel.updateDayDetails(
+                                    workerId = worker.id,
+                                    dayNumber = day,
+                                    advance = dayRecord?.advanceAmount ?: 0.0,
+                                    note = dayRecord?.note ?: "",
+                                    otHours = 0.0,
+                                    monthStr = selectedMonth
+                                )
+                                selectedDayForOvertimeDialog = null
+                            }
+                        ) {
+                            Text("Clear OT", color = LaborError)
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            val ot = otHoursInput.toDoubleOrNull() ?: 2.0
+                            viewModel.updateDayDetails(
+                                workerId = worker.id,
+                                dayNumber = day,
+                                advance = dayRecord?.advanceAmount ?: 0.0,
+                                note = dayRecord?.note ?: "",
+                                otHours = ot,
+                                monthStr = selectedMonth
+                            )
+                            selectedDayForOvertimeDialog = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
+                    ) {
+                        Text("Save Overtime", color = Color.White)
+                    }
                 }
             },
             dismissButton = {
@@ -830,9 +848,9 @@ fun LaborAttendanceDayRow(
 
                 // OT - Overtime (Blue)
                 DetailStatusChip(
-                    label = if (status == AttendanceStatus.OVERTIME && otHours > 0) "${otHours.toInt()}h" else "OT",
+                    label = if (otHours > 0) "${if (otHours % 1.0 == 0.0) otHours.toInt() else otHours}h" else "OT",
                     color = LaborBlue,
-                    isSelected = status == AttendanceStatus.OVERTIME,
+                    isSelected = status == AttendanceStatus.OVERTIME || otHours > 0,
                     onClick = { onOvertimeClicked(dayInfo.day) }
                 )
 

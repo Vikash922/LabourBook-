@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -170,11 +171,9 @@ fun AddLaborScreen(
         }
     }
 
-    // Automatically prompt for permission when user lands on Add Labor screen if not granted yet
-    LaunchedEffect(Unit) {
-        if (!hasContactPermission) {
-            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-        } else {
+    // Refresh contacts when permission is granted
+    LaunchedEffect(hasContactPermission) {
+        if (hasContactPermission) {
             viewModel.refreshContacts(context)
         }
     }
@@ -553,17 +552,17 @@ fun AddLaborScreen(
                 }
             }
 
-            // Continuous White Card containing Contact rows
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 60.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    if (contacts.isEmpty()) {
+            // Continuous Contact list with fast Lazy recycling
+            if (contacts.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 60.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -584,87 +583,109 @@ fun AddLaborScreen(
                                 textAlign = TextAlign.Center
                             )
                         }
-                    } else {
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = contacts,
+                    key = { _, contact -> contact.id }
+                ) { index, contact ->
+                    val isFirst = index == 0
+                    val isLast = index == contacts.size - 1
+                    val cardShape = when {
+                        isFirst && isLast -> RoundedCornerShape(16.dp)
+                        isFirst -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        isLast -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        else -> androidx.compose.ui.graphics.RectangleShape
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedContactForAdd = contact }
+                            .testTag("contact_item_${contact.id}"),
+                        shape = cardShape,
+                        color = Color.White,
+                        shadowElevation = if (isFirst || isLast) 1.dp else 0.dp
+                    ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            contacts.forEachIndexed { index, contact ->
-                                // Contact Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { selectedContactForAdd = contact }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                                        .testTag("contact_item_${contact.id}"),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        val avatarBgColor = try {
+                                    val avatarBgColor = remember(contact.avatarColorHex) {
+                                        try {
                                             Color(android.graphics.Color.parseColor(contact.avatarColorHex))
                                         } catch (e: Exception) {
                                             Color(0xFFFFD1B3)
                                         }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .size(42.dp)
-                                                .clip(CircleShape)
-                                                .background(avatarBgColor),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = contact.initial,
-                                                fontSize = 17.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF1F2937)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(14.dp))
-
-                                        Column {
-                                            Text(
-                                                text = contact.name,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = LaborTextPrimary
-                                            )
-                                            Text(
-                                                text = contact.phoneNumber,
-                                                fontSize = 13.sp,
-                                                color = LaborTextSecondary
-                                            )
-                                        }
                                     }
 
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = Color(0xFFEFF6FF),
-                                        modifier = Modifier.padding(start = 8.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(CircleShape)
+                                            .background(avatarBgColor),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "+ Add",
-                                            fontSize = 12.sp,
+                                            text = contact.initial,
+                                            fontSize = 17.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = LaborBlue,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            color = Color(0xFF1F2937)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Column {
+                                        Text(
+                                            text = contact.name,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = LaborTextPrimary
+                                        )
+                                        Text(
+                                            text = contact.phoneNumber,
+                                            fontSize = 13.sp,
+                                            color = LaborTextSecondary
                                         )
                                     }
                                 }
 
-                                if (index < contacts.size - 1) {
-                                    HorizontalDivider(
-                                        color = Color(0xFFF3F4F6),
-                                        thickness = 0.8.dp,
-                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFEFF6FF),
+                                    modifier = Modifier.padding(start = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "+ Add",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LaborBlue,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
                                 }
+                            }
+
+                            if (!isLast) {
+                                HorizontalDivider(
+                                    color = Color(0xFFF3F4F6),
+                                    thickness = 0.8.dp,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
                             }
                         }
                     }
                 }
+                item { Spacer(modifier = Modifier.height(60.dp)) }
             }
         }
     }
@@ -710,7 +731,7 @@ fun AddLaborScreen(
                 Button(
                     onClick = {
                         val wage = contactDailyWage.toDoubleOrNull() ?: 800.0
-                        viewModel.addLaborFromContact(contact.copy())
+                        viewModel.addLaborFromContact(contact.copy(), wage)
                         viewModel.showMessage("Added ${contact.name} to labors list!")
                         selectedContactForAdd = null
                     },

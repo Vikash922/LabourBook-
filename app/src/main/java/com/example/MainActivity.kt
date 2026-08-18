@@ -172,7 +172,7 @@ fun LaborbookApp(viewModel: LaborViewModel) {
                     val isLogin = initialState is Screen.Login || targetState is Screen.Login
                     
                     if (isRootToRoot || isLogin) {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                        fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
                     } else {
                         val isNavigatingBack = (targetState is Screen.LaborHome && (initialState is Screen.AddLabor || initialState is Screen.LaborDetail)) ||
                                 (targetState is Screen.CashBook && initialState is Screen.CashBookReport) ||
@@ -182,19 +182,19 @@ fun LaborbookApp(viewModel: LaborViewModel) {
                         if (isNavigatingBack) {
                             (slideInHorizontally(
                                 initialOffsetX = { -it / 3 },
-                                animationSpec = tween(350)
-                            ) + fadeIn(animationSpec = tween(350))) togetherWith (slideOutHorizontally(
+                                animationSpec = tween(180)
+                            ) + fadeIn(animationSpec = tween(180))) togetherWith (slideOutHorizontally(
                                 targetOffsetX = { it },
-                                animationSpec = tween(350)
-                            ) + fadeOut(animationSpec = tween(350)))
+                                animationSpec = tween(180)
+                            ) + fadeOut(animationSpec = tween(180)))
                         } else {
                             (slideInHorizontally(
                                 initialOffsetX = { it },
-                                animationSpec = tween(350)
-                            ) + fadeIn(animationSpec = tween(350))) togetherWith (slideOutHorizontally(
+                                animationSpec = tween(180)
+                            ) + fadeIn(animationSpec = tween(180))) togetherWith (slideOutHorizontally(
                                 targetOffsetX = { -it / 3 },
-                                animationSpec = tween(350)
-                            ) + fadeOut(animationSpec = tween(350)))
+                                animationSpec = tween(180)
+                            ) + fadeOut(animationSpec = tween(180)))
                         }
                     }
                 }

@@ -1,0 +1,134 @@
+name: Build and Publish Debug APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Verify Java environment
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+          JAVA_MAJOR=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d'.' -f1)
+          if [ -z "$JAVA_MAJOR" ]; then
+            echo "Failed to detect Java version."
+            exit 1
+          fi
+          if [ "$JAVA_MAJOR" -lt 17 ]; then
+            echo "Java version is $JAVA_MAJOR. Needs to be at least 17."
+            exit 1
+          fi
+          echo "Java version verified: $JAVA_MAJOR"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Create temporary debug keystore
+        run: |
+          if [ ! -f ./debug.keystore ]; then
+            keytool -genkey -v -keystore ./debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ ! -f ./debug.keystore ]; then
+            echo "Failed to create ./debug.keystore"
+            exit 1
+          fi
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify the APK
+        run: |
+          EXPECTED_APK="app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -f "$EXPECTED_APK" ] || [ ! -s "$EXPECTED_APK" ]; then
+            echo "Expected APK $EXPECTED_APK missing or empty."
+            echo "Contents of app/build/outputs/apk:"
+            ls -la app/build/outputs/apk || echo "Directory not found."
+            exit 1
+          fi
+          echo "Verified APK exists and is not empty: $EXPECTED_APK"
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Prepare APK release asset
+        id: prepare_asset
+        run: |
+          TEMP_DIR=$(mktemp -d)
+          SAFE_REPO_NAME=$(basename "${{ github.repository }}" | sed -e 's/[^a-zA-Z0-9-]/_/g')
+          ASSET_NAME="${SAFE_REPO_NAME}-debug-build-${{ github.run_number }}.apk"
+          ASSET_PATH="${TEMP_DIR}/${ASSET_NAME}"
+          cp app/build/outputs/apk/debug/app-debug.apk "$ASSET_PATH"
+          echo "asset_path=${ASSET_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish APK to GitHub Releases
+        id: publish_release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh --version
+          ASSET_PATH="${{ steps.prepare_asset.outputs.asset_path }}"
+          if [ ! -s "$ASSET_PATH" ]; then
+            echo "Asset missing or empty: $ASSET_PATH"
+            exit 1
+          fi
+          TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
+          gh release create "$TAG_NAME" "$ASSET_PATH" \
+            --title "Debug APK Build #${{ github.run_number }}" \
+            --target "${{ github.sha }}" \
+            --latest \
+            --notes "This is an automatically generated debug APK.
+            The APK was built by GitHub Actions.
+            The GitHub Actions run number: ${{ github.run_number }}
+            The GitHub Actions run attempt: ${{ github.run_attempt }}
+            The source commit SHA: ${{ github.sha }}
+            The APK is intended for testing.
+            The APK is not a Play Store production release.
+            The APK is signed only with a temporary debug keystore."
+
+      - name: Report APK download result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
+          if [ "${{ steps.publish_release.outcome }}" == "success" ]; then
+            echo "### ✅ Release Published Successfully" >> $GITHUB_STEP_SUMMARY
+            gh release view "$TAG_NAME"
+            RELEASE_URL=$(gh release view "$TAG_NAME" --json url -q .url)
+            echo "Release Tag: $TAG_NAME"
+            echo "Release Title: Debug APK Build #${{ github.run_number }}"
+            echo "Release URL: $RELEASE_URL"
+            echo "APK Asset Filename: $(basename "${{ steps.prepare_asset.outputs.asset_path }}")"
+            echo "The APK can be downloaded directly from the release Assets section at: $RELEASE_URL" >> $GITHUB_STEP_SUMMARY
+            echo "The normal Actions artifact (app-debug-apk) is also available as a backup." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Release Publishing Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Warning: GitHub Release could not be created."
+            echo "However, the APK build succeeded!"
+            echo "The Actions artifact named app-debug-apk remains available."
+            echo "Warning: GitHub Release could not be created. The APK build succeeded, and the Actions artifact named app-debug-apk remains available." >> $GITHUB_STEP_SUMMARY
+          fi

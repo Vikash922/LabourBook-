@@ -248,12 +248,12 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
-    fun addLaborFromContact(contact: SavedContact) {
+    fun addLaborFromContact(contact: SavedContact, wage: Double = 800.0) {
         repository.addWorker(
             name = contact.name,
             phone = contact.phoneNumber,
-            wage = 800.0,
-            skills = listOf("Tile worker", "Carpenter", "General staff")
+            wage = wage,
+            skills = listOf("Staff", "Worker")
         )
         navigateTo(Screen.LaborHome)
     }
