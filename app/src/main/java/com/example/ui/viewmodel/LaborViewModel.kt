@@ -136,9 +136,6 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     private val _newLaborWage = MutableStateFlow("800")
     val newLaborWage: StateFlow<String> = _newLaborWage.asStateFlow()
 
-    private val _newLaborSkills = MutableStateFlow(listOf("Tile worker", "Carpenter"))
-    val newLaborSkills: StateFlow<List<String>> = _newLaborSkills.asStateFlow()
-
     // Selected Transaction for View / Edit Bottom Sheets
     private val _activeTransaction = MutableStateFlow<CashTransaction?>(null)
     val activeTransaction: StateFlow<CashTransaction?> = _activeTransaction.asStateFlow()
@@ -210,16 +207,6 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         _newLaborWage.value = wage
     }
 
-    fun toggleSkillSelection(skill: String) {
-        val current = _newLaborSkills.value.toMutableList()
-        if (current.contains(skill)) {
-            current.remove(skill)
-        } else {
-            current.add(skill)
-        }
-        _newLaborSkills.value = current
-    }
-
     fun onContactsSearchQueryChanged(q: String) {
         _contactsSearchQuery.value = q
     }
@@ -238,7 +225,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         if (name.isBlank() || phone.isBlank()) return false
 
         val wage = _newLaborWage.value.toDoubleOrNull() ?: 800.0
-        repository.addWorker(name, phone, wage, _newLaborSkills.value)
+        repository.addWorker(name, phone, wage)
 
         // Reset form
         _newLaborName.value = ""
@@ -252,8 +239,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         repository.addWorker(
             name = contact.name,
             phone = contact.phoneNumber,
-            wage = wage,
-            skills = listOf("Staff", "Worker")
+            wage = wage
         )
         navigateTo(Screen.LaborHome)
     }

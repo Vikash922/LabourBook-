@@ -233,7 +233,7 @@ fun LaborReportScreen(
                             }
                         }
                         Text(
-                            text = "Phone: ${worker.phoneNumber} · Skills: ${worker.skills.joinToString(", ")}",
+                            text = "Phone: ${worker.phoneNumber}",
                             fontSize = 13.sp,
                             color = LaborTextSecondary
                         )

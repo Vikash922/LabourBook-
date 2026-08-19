@@ -551,8 +551,7 @@ class LaborRepository(private val context: Context? = null) {
     fun addWorker(
         name: String,
         phone: String,
-        wage: Double = 800.0,
-        skills: List<String> = listOf("Labor", "Staff")
+        wage: Double = 800.0
     ): LaborWorker {
         val colors = listOf("#1656D6", "#D8B4FE", "#A7F3D0", "#FFD1B3", "#FBCFE8", "#BAE6FD")
         val color = colors[(_workers.value.size) % colors.size]
@@ -562,7 +561,6 @@ class LaborRepository(private val context: Context? = null) {
             name = name,
             phoneNumber = phone,
             dailyWage = wage,
-            skills = skills.ifEmpty { listOf("Staff", "Worker") },
             avatarColorHex = color,
             attendance = emptyMap()
         )
@@ -670,8 +668,8 @@ class LaborRepository(private val context: Context? = null) {
                 val currentMap = worker.attendance.toMutableMap()
                 val existing = currentMap[dateKey]
                 val currentStatus = existing?.status ?: AttendanceStatus.UNMARKED
-                val finalStatus = if (otHours > 0.0 && currentStatus == AttendanceStatus.UNMARKED) {
-                    AttendanceStatus.OVERTIME
+                val finalStatus = if (otHours > 0.0 && currentStatus != AttendanceStatus.HALF_DAY) {
+                    AttendanceStatus.PRESENT
                 } else if (otHours == 0.0 && currentStatus == AttendanceStatus.OVERTIME) {
                     AttendanceStatus.UNMARKED
                 } else {

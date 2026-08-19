@@ -76,7 +76,7 @@ object CompactCsvBackupService {
     /**
      * Generates a complete, ultra-compact .CSV file containing:
      * 1. Profile Info
-     * 2. All Labor Workers (Names, phone, daily rate, skills)
+     * 2. All Labor Workers (Names, phone, daily rate)
      * 3. Complete Attendance Logs (Present, Absent, Overtime, Half-day, Advances, Notes across all dates)
      * 4. Cash Book Transactions
      */
@@ -99,10 +99,9 @@ object CompactCsvBackupService {
 
         // SECTION 2: LABOR WORKERS MASTER LIST
         sb.append("[SECTION_WORKERS]\n")
-        sb.append("WorkerId,Name,PhoneNumber,DailyWage,Skills,AvatarColorHex,CreatedAt\n")
+        sb.append("WorkerId,Name,PhoneNumber,DailyWage,AvatarColorHex,CreatedAt\n")
         for (w in workers) {
-            val skillsJoined = w.skills.joinToString(";")
-            sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(w.phoneNumber)},${w.dailyWage},${escapeCsv(skillsJoined)},${escapeCsv(w.avatarColorHex)},${w.createdAt}\n")
+            sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(w.phoneNumber)},${w.dailyWage},${escapeCsv(w.avatarColorHex)},${w.createdAt}\n")
         }
         sb.append("\n")
 
@@ -194,17 +193,14 @@ object CompactCsvBackupService {
                             val name = tokens.getOrElse(1) { "Worker" }
                             val phone = tokens.getOrElse(2) { "" }
                             val wage = tokens.getOrElse(3) { "800.0" }.toDoubleOrNull() ?: 800.0
-                            val skillsStr = tokens.getOrElse(4) { "Staff;Worker" }
-                            val skills = skillsStr.split(";").filter { it.isNotBlank() }
-                            val color = tokens.getOrElse(5) { "#1656D6" }
-                            val createdAt = tokens.getOrElse(6) { System.currentTimeMillis().toString() }.toLongOrNull() ?: System.currentTimeMillis()
+                            val color = tokens.getOrElse(4) { "#1656D6" }
+                            val createdAt = tokens.getOrElse(5) { System.currentTimeMillis().toString() }.toLongOrNull() ?: System.currentTimeMillis()
 
                             val worker = LaborWorker(
                                 id = id,
                                 name = name,
                                 phoneNumber = phone,
                                 dailyWage = wage,
-                                skills = if (skills.isEmpty()) listOf("Staff", "Worker") else skills,
                                 avatarColorHex = color,
                                 attendance = emptyMap(),
                                 createdAt = createdAt

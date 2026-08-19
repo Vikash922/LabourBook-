@@ -114,14 +114,13 @@ object PdfReportGenerator {
         y += 30
         
         // Worker details box
-        canvas.drawRoundRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + 80, 8f, 8f, bgPaint)
+        canvas.drawRoundRect(MARGIN, y, PAGE_WIDTH - MARGIN, y + 60, 8f, 8f, bgPaint)
         canvas.drawText("Worker Name: ${worker.name}", MARGIN + 15, y + 25, textBoldPaint)
         canvas.drawText("Phone: ${worker.phoneNumber}", MARGIN + 15, y + 45, textPaint)
-        canvas.drawText("Skills: ${worker.skills.joinToString(", ")}", MARGIN + 15, y + 65, textPaint)
         
         canvas.drawText("Daily Wage:", PAGE_WIDTH - MARGIN - 150, y + 25, textPaint)
         canvas.drawText("Rs.${worker.dailyWage.toInt()}", PAGE_WIDTH - MARGIN - 150, y + 45, titlePaint)
-        y += 100
+        y += 80
         
         // Summary
         val present = worker.getTotalPresent(month)

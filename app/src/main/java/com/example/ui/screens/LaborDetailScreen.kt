@@ -128,6 +128,7 @@ fun LaborDetailScreen(
     var selectedDayForAdvanceDialog by remember { mutableStateOf<Int?>(null) }
     var selectedDayForOvertimeDialog by remember { mutableStateOf<Int?>(null) }
     var showCalendarDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -309,6 +310,25 @@ fun LaborDetailScreen(
                                 Text("₹${monthEstimatedEarnings.toInt()}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = LaborBlue)
                             }
                         }
+                        
+                        // Break down of salary calculation
+                        val otRate = (worker.dailyWage / 8.0) * 1.5
+                        val calculationText = buildString {
+                            append("(${if (monthPresent % 1.0 == 0.0) monthPresent.toInt() else monthPresent}P × ₹${worker.dailyWage.toInt()})")
+                            if (monthOvertime > 0) append(" + (${if (monthOvertime % 1.0 == 0.0) monthOvertime.toInt() else monthOvertime}h OT × ₹${otRate.toInt()})")
+                            if (monthAdvance > 0) append(" - (₹${monthAdvance.toInt()} Adv)")
+                            append(" = Net ₹${monthEstimatedEarnings.toInt()}")
+                        }
+                        
+                        Surface(modifier = Modifier.fillMaxWidth(), color = Color(0xFFF9FAFB)) {
+                            Text(
+                                text = calculationText,
+                                fontSize = 11.sp,
+                                color = LaborTextSecondary,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
 
                         HorizontalDivider(color = LaborDivider, thickness = 0.8.dp)
 
@@ -426,9 +446,28 @@ fun LaborDetailScreen(
 
             item { Spacer(modifier = Modifier.height(14.dp)) }
 
-            // Daily Attendance Table Header
             item {
-                // Column Headers: 'Date' | 'Attendance' | '₹ / Notes'
+                androidx.compose.material3.TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.White
+                ) {
+                    androidx.compose.material3.Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = { Text("Attendance", color = if (selectedTab == 0) LaborBlue else LaborTextSecondary, fontWeight = if(selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
+                    )
+                    androidx.compose.material3.Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = { Text("Advance Ledger", color = if (selectedTab == 1) LaborBlue else LaborTextSecondary, fontWeight = if(selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
+                    )
+                }
+            }
+
+            if (selectedTab == 0) {
+                // Daily Attendance Table Header
+                item {
+                    // Column Headers: 'Date' | 'Attendance' | '₹ / Notes'
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -486,6 +525,88 @@ fun LaborDetailScreen(
                         selectedDayForAdvanceDialog = day
                     }
                 )
+            }
+            } else {
+                // Advance Ledger Tab
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF9FAFB))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Date",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LaborTextSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Advance Given & Notes",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LaborTextSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    HorizontalDivider(color = LaborDivider, thickness = 0.8.dp)
+                }
+                
+                val advanceRecords = monthDaysInfo.mapNotNull { dayInfo ->
+                    val dayRecord = worker.attendance[dayInfo.dateKey]
+                    if (dayRecord != null && dayRecord.advanceAmount > 0) {
+                        Pair(dayInfo, dayRecord)
+                    } else null
+                }.sortedByDescending { it.first.day }
+                
+                if (advanceRecords.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("No advance records found for this month.", color = LaborTextSecondary, fontSize = 14.sp)
+                        }
+                    }
+                } else {
+                    items(
+                        items = advanceRecords,
+                        key = { "adv_${it.first.dateKey}" }
+                    ) { (dayInfo, record) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White)
+                                .clickable { selectedDayForAdvanceDialog = dayInfo.day }
+                                .padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = dayInfo.formattedDisplay,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = LaborTextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "₹${record.advanceAmount.toInt()}",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LaborError
+                                )
+                                if (record.note.isNotBlank()) {
+                                    Text(
+                                        text = record.note,
+                                        fontSize = 12.sp,
+                                        color = LaborTextSecondary,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider(color = LaborDivider, thickness = 0.5.dp)
+                    }
+                }
             }
 
             item {
@@ -834,7 +955,7 @@ fun LaborAttendanceDayRow(
                 DetailStatusChip(
                     label = "P",
                     color = LaborSuccess,
-                    isSelected = status == AttendanceStatus.PRESENT || status == AttendanceStatus.HALF_DAY,
+                    isSelected = status == AttendanceStatus.PRESENT,
                     onClick = { onStatusSelected(dayInfo.day, AttendanceStatus.PRESENT) }
                 )
 

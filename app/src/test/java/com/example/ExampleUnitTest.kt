@@ -27,7 +27,6 @@ class ExampleUnitTest {
             name = "Ramesh Kumar",
             phoneNumber = "9876543210",
             dailyWage = 900.0,
-            skills = listOf("Mason", "Tile worker"),
             attendance = mapOf(
                 "2026-08-01" to DailyAttendance(
                     dayNumber = 1,

@@ -38,7 +38,6 @@ class ExampleRobolectricTest {
       name = "Ramesh Kumar",
       phoneNumber = "9876543210",
       dailyWage = 650.0,
-      skills = listOf("Carpenter"),
       attendance = mapOf(
         "2026-08-15" to DailyAttendance(
           dayNumber = 15,
