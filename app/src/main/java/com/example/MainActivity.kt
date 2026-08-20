@@ -44,20 +44,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Info
-import com.example.ui.components.LaborbookBottomNav
-import com.example.ui.screens.AddLaborScreen
-import com.example.ui.screens.BatchPdfHubScreen
-import com.example.ui.screens.CashBookReportScreen
-import com.example.ui.screens.CashBookScreen
-import com.example.ui.screens.LaborDetailScreen
-import com.example.ui.screens.LaborHomeScreen
-import com.example.ui.screens.LaborReportScreen
-import com.example.ui.screens.LoginScreen
-import com.example.ui.screens.SettingsScreen
-import com.example.ui.screens.SplashScreen
-import com.example.ui.theme.LaborbookTheme
-import com.example.ui.viewmodel.LaborViewModel
-import com.example.ui.viewmodel.Screen
+import com.example.presentation.components.LaborbookBottomNav
+import com.example.presentation.screens.AddLaborScreen
+import com.example.presentation.screens.BatchPdfHubScreen
+import com.example.presentation.screens.CashBookReportScreen
+import com.example.presentation.screens.CashBookScreen
+import com.example.presentation.screens.LaborDetailScreen
+import com.example.presentation.screens.LaborHomeScreen
+import com.example.presentation.screens.LaborReportScreen
+import com.example.presentation.screens.LoginScreen
+import com.example.presentation.screens.SettingsScreen
+import com.example.presentation.screens.SplashScreen
+import com.example.presentation.theme.LaborbookTheme
+import com.example.presentation.viewmodel.LaborViewModel
+import com.example.presentation.viewmodel.Screen
 
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.FirebaseAnalytics.getInstance
@@ -130,7 +130,7 @@ fun LaborbookApp(viewModel: LaborViewModel) {
                     modifier = Modifier
                         .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
                         .fillMaxWidth()
-                        .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = com.example.ui.theme.LaborBlue, spotColor = com.example.ui.theme.LaborBlue)
+                        .shadow(12.dp, RoundedCornerShape(20.dp), ambientColor = com.example.presentation.theme.LaborBlue, spotColor = com.example.presentation.theme.LaborBlue)
                         .background(Color(0xFF1E293B), RoundedCornerShape(20.dp))
                         .padding(horizontal = 18.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -138,7 +138,7 @@ fun LaborbookApp(viewModel: LaborViewModel) {
                     Icon(
                         imageVector = Icons.Rounded.Info,
                         contentDescription = "Notification",
-                        tint = com.example.ui.theme.LaborWarning,
+                        tint = com.example.presentation.theme.LaborWarning,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(14.dp))

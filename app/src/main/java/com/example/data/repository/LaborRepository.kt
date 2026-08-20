@@ -4,17 +4,17 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.provider.ContactsContract
 import android.util.Log
-import com.example.data.cloud.BackupData
-import com.example.data.cloud.CloudBackupRecord
-import com.example.data.model.AttendanceStatus
-import com.example.data.model.CashTransaction
-import com.example.data.model.DailyAttendance
-import com.example.data.model.LaborWorker
-import com.example.data.model.PaymentMethod
-import com.example.data.model.SavedContact
-import com.example.data.model.TransactionType
-import com.example.data.model.UserProfile
-import com.example.util.LaborCalendarHelper
+import com.example.data.remote.BackupData
+import com.example.data.remote.CloudBackupRecord
+import com.example.domain.model.AttendanceStatus
+import com.example.domain.model.CashTransaction
+import com.example.domain.model.DailyAttendance
+import com.example.domain.model.LaborWorker
+import com.example.domain.model.PaymentMethod
+import com.example.domain.model.SavedContact
+import com.example.domain.model.TransactionType
+import com.example.domain.model.UserProfile
+import com.example.core.util.LaborCalendarHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -124,11 +124,11 @@ class LaborRepository(private val context: Context? = null) {
 
         // 1. Try to load from user's local persistent cache & persistent documents
         if (context != null) {
-            val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.cloud.CompactCsvBackupService.MASTER_CSV_FILENAME}")
-            var localData: com.example.data.cloud.BackupData? = null
+            val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.remote.CompactCsvBackupService.MASTER_CSV_FILENAME}")
+            var localData: com.example.data.remote.BackupData? = null
             if (localFile.exists()) {
                 val csvContent = localFile.readText()
-                val parsedResult = com.example.data.cloud.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
+                val parsedResult = com.example.data.remote.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
                 if (parsedResult.isSuccess) {
                     localData = parsedResult.getOrThrow()
                 }
@@ -154,7 +154,7 @@ class LaborRepository(private val context: Context? = null) {
             _lastBackupStatus.value = "Restoring backup from Cloud..."
             repositoryScope.launch {
                 val cloudResult = if (context != null) {
-                    com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+                    com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
                 } else {
                     Result.failure(Exception("Context is null"))
                 }
@@ -215,7 +215,7 @@ class LaborRepository(private val context: Context? = null) {
             try {
                 delay(300L) // Debounce rapid writes
                 if (context != null) {
-                    com.example.data.cloud.CompactCsvBackupService.saveBackupToCsvFile(context, currentWorkers, currentTransactions, currentProfile)
+                    com.example.data.remote.CompactCsvBackupService.saveBackupToCsvFile(context, currentWorkers, currentTransactions, currentProfile)
                 }
                 Log.d(TAG, "Local cache saved for $currentEmail (${currentWorkers.size} workers, ${currentTransactions.size} transactions)")
             } catch (e: Exception) {
@@ -231,7 +231,7 @@ class LaborRepository(private val context: Context? = null) {
                 try {
                     delay(1500L) // 1.5s debounce to prevent spamming Firestore
                     Log.i(TAG, "Executing debounced cloud auto-sync for: $currentEmail")
-                    com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
+                    com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
                 } catch (e: Exception) {
                     Log.w(TAG, "Background auto-sync note: ${e.message}")
                 }
@@ -249,12 +249,12 @@ class LaborRepository(private val context: Context? = null) {
     /**
      * Explicitly triggers a Cloud backup upload for this user.
      */
-    suspend fun backupToCloud(): Result<com.example.data.cloud.CloudBackupRecord> {
+    suspend fun backupToCloud(): Result<com.example.data.remote.CloudBackupRecord> {
         _isCloudSyncing.value = true
         _lastBackupStatus.value = "Backing up..."
 
         val timestamp = java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-        val res = com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
+        val res = com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
         _isCloudSyncing.value = false
 
         if (res.isSuccess) {
@@ -263,12 +263,12 @@ class LaborRepository(private val context: Context? = null) {
             )
             _lastBackupStatus.value = "Backup successful ($timestamp)"
             persistProfile()
-            return Result.success(com.example.data.cloud.CloudBackupRecord("Cloud Sync", timestamp, _workers.value.size, _transactions.value.size))
+            return Result.success(com.example.data.remote.CloudBackupRecord("Cloud Sync", timestamp, _workers.value.size, _transactions.value.size))
         } else {
             val errMessage = res.exceptionOrNull()?.message ?: "Sync failed"
             if (errMessage.contains("Firebase not initialized", ignoreCase = true)) {
                 _lastBackupStatus.value = "Local Backup Saved ($timestamp)"
-                return Result.success(com.example.data.cloud.CloudBackupRecord("Local Backup", timestamp, _workers.value.size, _transactions.value.size))
+                return Result.success(com.example.data.remote.CloudBackupRecord("Local Backup", timestamp, _workers.value.size, _transactions.value.size))
             } else {
                 _lastBackupStatus.value = "Backup failed: $errMessage"
                 return Result.failure(res.exceptionOrNull() ?: Exception(errMessage))
@@ -279,11 +279,11 @@ class LaborRepository(private val context: Context? = null) {
     /**
      * Explicitly triggers a download and restore from Cloud.
      */
-    suspend fun restoreFromCloud(): Result<com.example.data.cloud.BackupData> {
+    suspend fun restoreFromCloud(): Result<com.example.data.remote.BackupData> {
         _isCloudSyncing.value = true
         _lastBackupStatus.value = "Restoring backup..."
 
-        val res = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+        val res = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
         _isCloudSyncing.value = false
 
         res.onSuccess { backupData ->
@@ -335,7 +335,7 @@ class LaborRepository(private val context: Context? = null) {
                 var hasRestored = false
 
                 // 1. Query Cloud Firestore first (Cloud is the primary source of truth per email)
-                val cloudRes = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+                val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
                 cloudRes.onSuccess { backupData ->
                     if (backupData.totalWorkers > 0 || backupData.totalTransactions > 0) {
                         _workers.value = backupData.workers
@@ -361,7 +361,7 @@ class LaborRepository(private val context: Context? = null) {
 
                 // 2. If cloud was offline or empty, check local sandbox backup for this specific email
                 if (!hasRestored && context != null) {
-                    val localData: com.example.data.cloud.BackupData? = null
+                    val localData: com.example.data.remote.BackupData? = null
                     if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
                         _workers.value = localData.workers
                         _transactions.value = localData.transactions
@@ -389,7 +389,7 @@ class LaborRepository(private val context: Context? = null) {
                     _transactions.value = emptyList()
                     _lastBackupStatus.value = "Account ready"
                     repositoryScope.launch(Dispatchers.IO) {
-                        com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, emptyList(), emptyList(), context)
+                        com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, emptyList(), emptyList(), context)
                     }
                     withContext(Dispatchers.Main) {
                         try {
@@ -414,11 +414,11 @@ class LaborRepository(private val context: Context? = null) {
         val ctx = context ?: return Result.failure(Exception("Context unavailable"))
         return withContext(Dispatchers.IO) {
             // 1. Device Deep Scan
-            var localDeep: com.example.data.cloud.BackupData? = null
-            val localFile = java.io.File(ctx.filesDir, "csv_backups/${com.example.data.cloud.CompactCsvBackupService.MASTER_CSV_FILENAME}")
+            var localDeep: com.example.data.remote.BackupData? = null
+            val localFile = java.io.File(ctx.filesDir, "csv_backups/${com.example.data.remote.CompactCsvBackupService.MASTER_CSV_FILENAME}")
             if (localFile.exists()) {
                 val csvContent = localFile.readText()
-                val parsedResult = com.example.data.cloud.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
+                val parsedResult = com.example.data.remote.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
                 if (parsedResult.isSuccess) {
                     localDeep = parsedResult.getOrThrow()
                 }
@@ -438,7 +438,7 @@ class LaborRepository(private val context: Context? = null) {
             }
 
             // 2. Cloud Deep Scan
-            val cloudRes = com.example.data.cloud.FirestoreSyncService.downloadDataFromCloud(context)
+            val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
             if (cloudRes.isSuccess) {
                 val cData = cloudRes.getOrThrow()
                 if (cData.totalWorkers > 0 || cData.totalTransactions > 0) {
@@ -460,7 +460,7 @@ class LaborRepository(private val context: Context? = null) {
         return try {
             if (_userProfile.value.email.isNotBlank()) {
                 _lastBackupStatus.value = "Backing up before logout..."
-                com.example.data.cloud.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
+                com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
             }
 
             // Mark session as logged out
@@ -471,7 +471,7 @@ class LaborRepository(private val context: Context? = null) {
             persistProfile()
 
             if (context != null) {
-                com.example.data.cloud.FirebaseAuthHelper.signOut(context)
+                com.example.data.remote.FirebaseAuthHelper.signOut(context)
             }
 
             // Reset in-memory states
@@ -599,7 +599,7 @@ class LaborRepository(private val context: Context? = null) {
         
         // Immediately delete from Firebase so it doesn't linger
         repositoryScope.launch(Dispatchers.IO) {
-            com.example.data.cloud.FirestoreSyncService.deleteWorker(workerId, context)
+            com.example.data.remote.FirestoreSyncService.deleteWorker(workerId, context)
         }
     }
 
