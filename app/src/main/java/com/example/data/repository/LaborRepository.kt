@@ -49,7 +49,7 @@ class LaborRepository(private val context: Context? = null) {
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
-    private val _selectedMonth = MutableStateFlow("Aug 2026")
+    private val _selectedMonth = MutableStateFlow(LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth))
     val selectedMonth: StateFlow<String> = _selectedMonth.asStateFlow()
 
     private val _lastBackupStatus = MutableStateFlow("Last backup: Never")

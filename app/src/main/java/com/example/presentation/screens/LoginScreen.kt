@@ -526,6 +526,29 @@ fun LoginScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Guest / Local Mode Text Button
+                    TextButton(
+                        onClick = {
+                            viewModel.loginWithGoogle(
+                                name = "Contractor",
+                                email = "guest@laborbook.local",
+                                businessName = businessNameInput.ifBlank { "My Business" },
+                                mobile = mobileInput
+                            )
+                        },
+                        modifier = Modifier.testTag("guest_login_button")
+                    ) {
+                        Text(
+                            text = "Skip and Continue as Guest",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = deepBlueBackground,
+                            fontFamily = appFontFamily
+                        )
+                    }
                 }
             }
 

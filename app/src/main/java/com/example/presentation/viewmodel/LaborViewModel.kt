@@ -470,7 +470,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         onComplete: (Boolean, String) -> Unit
     ) {
         viewModelScope.launch {
-            val result = com.example.data.remote.FirebaseAuthHelper.signUpWithEmail(context, email, pass)
+            val result = com.example.data.remote.FirebaseAuthHelper.signUpWithEmail(context, email, pass, businessName)
             result.onSuccess { authUser ->
                 val finalName = if (businessName.isNotBlank()) businessName else authUser.displayName
                 loginWithGoogle(

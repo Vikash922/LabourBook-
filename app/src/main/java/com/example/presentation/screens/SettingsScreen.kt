@@ -26,8 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
@@ -313,7 +313,7 @@ fun SettingsScreen(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                imageVector = Icons.Default.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = Color(0xFF94A3B8),
                                 modifier = Modifier.size(18.dp)
@@ -412,7 +412,7 @@ fun SettingsScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     SettingsRowItem(
-                        icon = Icons.AutoMirrored.Filled.Logout,
+                        icon = Icons.Default.Logout,
                         title = AppStrings.get("logout", lang),
                         subtitle = "Auto-backs up records before signing out",
                         iconTint = Color(0xFFDC2626),
@@ -592,7 +592,7 @@ fun SettingsScreen(
             title = { 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        imageVector = Icons.Default.Logout,
                         contentDescription = null,
                         tint = Color(0xFFDC2626),
                         modifier = Modifier.size(22.dp)
@@ -972,7 +972,7 @@ fun SettingsRowItem(
             }
         }
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            imageVector = Icons.Default.KeyboardArrowRight,
             contentDescription = null,
             tint = Color(0xFF94A3B8),
             modifier = Modifier.size(18.dp)

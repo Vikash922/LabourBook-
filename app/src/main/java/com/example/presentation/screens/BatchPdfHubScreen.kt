@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.Button
@@ -85,7 +85,7 @@ fun BatchPdfHubScreen(
                         modifier = Modifier.testTag("batch_hub_back_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.Black
                         )
@@ -152,7 +152,7 @@ fun BatchPdfHubScreen(
                     HorizontalDivider(color = Color(0xFFF1F5F9))
                     
                     SettingsRowItem(
-                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                        icon = Icons.Default.ReceiptLong,
                         title = "Cash Book Ledger",
                         subtitle = "Inflow, outflow & net balance",
                         iconTint = Color(0xFF25D366),
