@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,6 +58,7 @@ fun AdvanceAmountBottomSheet(
     initialNote: String,
     initialPaymentMethod: PaymentMethod = PaymentMethod.CASH,
     onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     onConfirm: (Double, String, PaymentMethod) -> Unit
 ) {
     var amountStr by remember {
@@ -83,48 +85,61 @@ fun AdvanceAmountBottomSheet(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = null
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 28.dp)
+                .background(Color.White)
+                .pointerInput(Unit) {}
+                .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 28.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 12.dp)
+            // Header Row: [ Advance amount / to WorkerName ] (left)  &  [ Aug 01, 2026 + Close Icon ] (right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header Row: [ Advance amount / to WorkerName ] (left)  &  [ Aug 01, 2026 ] (right)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 36.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column {
-                        Text(
-                            text = "Advance amount",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "to $workerName",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
-                    }
-
+                Column {
                     Text(
-                        text = formattedDate,
-                        fontSize = 15.sp,
+                        text = "Advance amount",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF111827)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "to $workerName",
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827),
-                        modifier = Modifier.padding(top = 2.dp)
+                        color = Color(0xFF111827)
                     )
                 }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = formattedDate,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF111827),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
 
                 Spacer(modifier = Modifier.height(34.dp))
 
@@ -293,48 +308,82 @@ fun AdvanceAmountBottomSheet(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // Ok Action Button (Pill shaped, full width with shadow)
-                Button(
-                    onClick = {
-                        val finalAmount = amountStr.toDoubleOrNull() ?: 0.0
-                        onConfirm(finalAmount, noteStr, selectedPaymentMethod)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .shadow(if (isAmountValid) 4.dp else 0.dp, RoundedCornerShape(26.dp)),
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isAmountValid) Color(0xFF1D61D2) else Color(0xFFB5B8BE),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Ok",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
+                if (initialAdvance > 0 && onDelete != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .weight(0.4f)
+                                .height(52.dp)
+                                .clickable { onDelete() },
+                            shape = RoundedCornerShape(26.dp),
+                            color = Color(0xFFFEF2F2),
+                            border = BorderStroke(1.dp, Color(0xFFFECACA))
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Delete",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
 
-            // Floating Close Button (top-right, outside/above the sheet content)
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 16.dp)
-                    .size(36.dp)
-                    .shadow(4.dp, CircleShape)
-                    .background(Color.White, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color(0xFF111827),
-                    modifier = Modifier.size(18.dp)
-                )
+                        Button(
+                            onClick = {
+                                val finalAmount = amountStr.toDoubleOrNull() ?: 0.0
+                                onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                            },
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .height(52.dp)
+                                .shadow(if (isAmountValid) 4.dp else 0.dp, RoundedCornerShape(26.dp)),
+                            shape = RoundedCornerShape(26.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isAmountValid) Color(0xFF1D61D2) else Color(0xFFB5B8BE),
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(
+                                text = "Ok",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else {
+                    // Ok Action Button (Pill shaped, full width with shadow)
+                    Button(
+                        onClick = {
+                            val finalAmount = amountStr.toDoubleOrNull() ?: 0.0
+                            onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .shadow(if (isAmountValid) 4.dp else 0.dp, RoundedCornerShape(26.dp)),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isAmountValid) Color(0xFF1D61D2) else Color(0xFFB5B8BE),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "Ok",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
     }
-}

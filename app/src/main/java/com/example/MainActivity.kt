@@ -16,6 +16,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -90,10 +91,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LaborbookApp(viewModel: LaborViewModel) {
-    val currentScreen by viewModel.currentScreen.collectAsState()
-    val selectedTab by viewModel.selectedTabIndex.collectAsState()
-    val userProfile by viewModel.userProfile.collectAsState()
-    val syncMessage by viewModel.syncMessage.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
+    val selectedTab by viewModel.selectedTabIndex.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(syncMessage) {

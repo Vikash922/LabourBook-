@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -53,6 +56,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextStyle
 import com.example.domain.model.CashTransaction
 import com.example.domain.model.PaymentMethod
 import com.example.domain.model.TransactionType
@@ -248,6 +260,7 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionEditBottomSheet(
     transaction: CashTransaction?,
@@ -259,13 +272,12 @@ fun TransactionEditBottomSheet(
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val scrollState = rememberScrollState()
 
     var amountText by remember {
-        mutableStateOf(if (transaction != null && transaction.amount > 0) transaction.amount.toInt().toString() else "500")
+        mutableStateOf(if (transaction != null && transaction.amount > 0) transaction.amount.toInt().toString() else "")
     }
     var notesText by remember {
-        mutableStateOf(transaction?.notes ?: if (defaultType == TransactionType.CASH_IN) "Income" else "Expense")
+        mutableStateOf(transaction?.notes ?: "")
     }
     var selectedMethod by remember {
         mutableStateOf(transaction?.paymentMethod ?: PaymentMethod.CASH)
@@ -276,7 +288,7 @@ fun TransactionEditBottomSheet(
     
     val defaultCal = remember { Calendar.getInstance() }
     val fullFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
-    val displayFormat = remember { SimpleDateFormat("dd EEE", Locale.getDefault()) }
+    val displayFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
     var selectedFullDate by remember {
         mutableStateOf(transaction?.fullDate ?: fullFormat.format(defaultCal.time))
@@ -304,7 +316,7 @@ fun TransactionEditBottomSheet(
             val cal = Calendar.getInstance()
             cal.set(year, month, dayOfMonth)
             val fullFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            val displayFormat = SimpleDateFormat("dd EEE", Locale.getDefault())
+            val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
             selectedFullDate = fullFormat.format(cal.time)
             selectedDateDisplay = displayFormat.format(cal.time)
         },
@@ -313,277 +325,304 @@ fun TransactionEditBottomSheet(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable { 
-                focusManager.clearFocus()
-                onClose() 
-            }
-            .imePadding()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = null
     ) {
         Column(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .clickable(enabled = false) {}
                 .fillMaxWidth()
+                .background(Color.White)
+                .pointerInput(Unit) {}
+                .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 28.dp)
         ) {
-            // Floating Close (X)
+            // Header Row: 'Cash In' (bold left) & 'Aug 21, 2026 Edit + Close Icon'
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 20.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White,
-                    shadowElevation = 6.dp,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clickable { 
-                            focusManager.clearFocus()
-                            onClose() 
-                        }
-                        .testTag("close_edit_sheet")
+                Text(
+                    text = if (currentType == TransactionType.CASH_IN) "Cash In" else "Cash Out",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clickable { datePickerDialog.show() }
+                            .testTag("pick_transaction_date_btn")
+                    ) {
+                        Text(
+                            text = selectedDateDisplay,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Edit",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1D61E7)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            onClose()
+                        },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .testTag("close_edit_sheet")
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.Black,
-                            modifier = Modifier.size(20.dp)
+                            tint = Color(0xFF111827),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // Sheet
-            Surface(
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // Amount Input Row
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                color = Color.White
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(scrollState)
-                        .padding(24.dp)
+                // ₹ + BasicTextField
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    // Header Row: 'Cash In' (bold left) | Interactive Date Pill with Calendar Icon
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (currentType == TransactionType.CASH_IN) "Cash In" else "Cash Out",
-                            fontSize = 20.sp,
+                    Text(
+                        text = "₹",
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF111827)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    BasicTextField(
+                        value = amountText,
+                        onValueChange = { input ->
+                            amountText = input.filter { it.isDigit() || it == '.' }
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = TextStyle(
+                            fontSize = 36.sp,
                             fontWeight = FontWeight.Bold,
-                            color = LaborTextPrimary
-                        )
-
-                        // Date Pill (Click to open Calendar Date Picker)
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFE5E7EB),
-                            border = BorderStroke(1.dp, LaborDivider),
-                            modifier = Modifier
-                                .clickable { datePickerDialog.show() }
-                                .testTag("pick_transaction_date_btn")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = "Change Date",
-                                    tint = LaborBlue,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = selectedFullDate,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LaborBlue
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Large Amount Display & Online / Cash Segmented Toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Amount input with rupee symbol
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "₹",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LaborTextPrimary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            OutlinedTextField(
-                                value = amountText,
-                                onValueChange = { amountText = it },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Next
-                                ),
-                                textStyle = androidx.compose.ui.text.TextStyle(
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LaborTextPrimary
-                                ),
-                                singleLine = true,
-                                modifier = Modifier
-                                    .width(130.dp)
-                                    .testTag("tx_amount_input"),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = LaborBlue,
-                                    unfocusedBorderColor = Color.Transparent
-                                )
-                            )
-                        }
-
-                        // Online / Cash Segmented Toggle
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFE5E7EB),
-                            modifier = Modifier.padding(4.dp)
-                        ) {
-                            Row(modifier = Modifier.padding(2.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(if (selectedMethod == PaymentMethod.ONLINE) Color.White else Color.Transparent)
-                                        .clickable { selectedMethod = PaymentMethod.ONLINE }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                                        .testTag("method_online_btn")
-                                ) {
-                                    Text(
-                                        text = "Online",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (selectedMethod == PaymentMethod.ONLINE) LaborBlue else LaborTextSecondary
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(if (selectedMethod == PaymentMethod.CASH) Color.White else Color.Transparent)
-                                        .clickable { selectedMethod = PaymentMethod.CASH }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                                        .testTag("method_cash_btn")
-                                ) {
-                                    Text(
-                                        text = "Cash",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (selectedMethod == PaymentMethod.CASH) LaborBlue else LaborTextSecondary
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Notes Input Field
-                    OutlinedTextField(
-                        value = notesText,
-                        onValueChange = { notesText = it },
-                        label = { Text("Notes") },
-                        placeholder = { Text("Enter note (e.g. Income, Cement purchase)") },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus() }
+                            color = Color(0xFF111827)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("tx_notes_input"),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LaborBlue,
-                            unfocusedBorderColor = LaborDivider
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Bottom Row: 'Delete Entry' and 'Save' buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (transaction != null && transaction.id.isNotBlank()) {
-                            Button(
-                                onClick = { 
-                                    focusManager.clearFocus()
-                                    onDelete(transaction.id) 
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("delete_tx_btn"),
-                                shape = RoundedCornerShape(24.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White,
-                                    contentColor = LaborError
-                                ),
-                                border = BorderStroke(1.2.dp, LaborError)
-                            ) {
+                            .testTag("tx_amount_input"),
+                        decorationBox = { innerTextField ->
+                            if (amountText.isEmpty()) {
                                 Text(
-                                    text = "Delete Entry",
-                                    fontSize = 14.sp,
+                                    text = "0",
+                                    fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = LaborError
+                                    color = Color(0xFF9CA3AF)
                                 )
                             }
+                            innerTextField()
                         }
+                    )
+                }
 
-                        Button(
-                            onClick = {
-                                focusManager.clearFocus()
-                                val amount = amountText.toDoubleOrNull() ?: 0.0
-                                onSave(
-                                    transaction?.id ?: "",
-                                    amount,
-                                    selectedMethod,
-                                    notesText.trim(),
-                                    currentType,
-                                    selectedDateDisplay,
-                                    selectedFullDate
-                                )
-                            },
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Online / Cash Segmented Toggle
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(1.2.dp, Color(0xFF1D61E7)),
+                    color = Color.White,
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("save_tx_btn"),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (selectedMethod == PaymentMethod.ONLINE) Color(0xFF1D61E7) else Color.Transparent)
+                                .clickable { selectedMethod = PaymentMethod.ONLINE }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .testTag("method_online_btn"),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Save",
-                                fontSize = 15.sp,
+                                text = "Online",
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = if (selectedMethod == PaymentMethod.ONLINE) Color.White else Color(0xFF1D61E7)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (selectedMethod == PaymentMethod.CASH) Color(0xFF1D61E7) else Color.Transparent)
+                                .clickable { selectedMethod = PaymentMethod.CASH }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .testTag("method_cash_btn"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Cash",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedMethod == PaymentMethod.CASH) Color.White else Color(0xFF1D61E7)
                             )
                         }
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Notes Section
+            Text(
+                text = "Notes",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF374151)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(25.dp),
+                color = Color(0xFFF9FAFB),
+                border = BorderStroke(1.2.dp, Color(0xFFE5E7EB)),
+                shadowElevation = 2.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    BasicTextField(
+                        value = notesText,
+                        onValueChange = { notesText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("tx_notes_input"),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                        textStyle = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF111827)
+                        ),
+                        decorationBox = { innerTextField ->
+                            if (notesText.isEmpty()) {
+                                Text(
+                                    text = "Eg. (Party name, Building name, Area name)",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (transaction != null && transaction.id.isNotBlank()) {
+                    Surface(
+                        modifier = Modifier
+                            .weight(0.4f)
+                            .height(52.dp)
+                            .clickable {
+                                focusManager.clearFocus()
+                                onDelete(transaction.id)
+                            }
+                            .testTag("delete_tx_btn"),
+                        shape = RoundedCornerShape(26.dp),
+                        color = Color(0xFFFEF2F2),
+                        border = BorderStroke(1.dp, Color(0xFFFECACA))
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Delete",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+                }
+
+                val isAmountEntered = amountText.trim().isNotEmpty() && (amountText.toDoubleOrNull() ?: 0.0) > 0.0
+                Button(
+                    onClick = {
+                        if (!isAmountEntered) return@Button
+                        focusManager.clearFocus()
+                        val amount = amountText.toDoubleOrNull() ?: 0.0
+                        onSave(
+                            transaction?.id ?: "",
+                            amount,
+                            selectedMethod,
+                            notesText.trim(),
+                            currentType,
+                            selectedDateDisplay,
+                            selectedFullDate
+                        )
+                    },
+                    enabled = isAmountEntered,
+                    modifier = Modifier
+                        .weight(if (transaction != null && transaction.id.isNotBlank()) 0.6f else 1f)
+                        .height(52.dp)
+                        .shadow(if (isAmountEntered) 4.dp else 0.dp, RoundedCornerShape(26.dp))
+                        .testTag("save_tx_btn"),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAmountEntered) Color(0xFF1D61E7) else Color(0xFFB5B8BE),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Save",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }

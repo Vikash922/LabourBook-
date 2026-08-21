@@ -1,9 +1,6 @@
 package com.example.presentation.screens
 
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,37 +13,30 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Policy
-import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.StarRate
 import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,14 +50,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,23 +66,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.remote.BackupMetadata
+import com.example.core.util.AppStrings
 import com.example.presentation.theme.LaborBlue
-import com.example.presentation.theme.LaborDivider
-import com.example.presentation.theme.LaborSuccess
 import com.example.presentation.theme.LaborTextPrimary
 import com.example.presentation.theme.LaborTextSecondary
 import com.example.presentation.viewmodel.LaborViewModel
 import com.example.presentation.viewmodel.Screen
-import com.example.core.util.AppStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,13 +88,10 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val userProfile by viewModel.userProfile.collectAsState()
-    val syncMessage by viewModel.syncMessage.collectAsState()
-    val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
-    val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
     val lang = userProfile.language
 
-    var showLanguageDialog by remember { mutableStateOf(false) }
     var showCloudBackupSheet by remember { mutableStateOf(false) }
     var showCsvOptionsSheet by remember { mutableStateOf(false) }
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
@@ -117,141 +102,104 @@ fun SettingsScreen(
     var isBackingUp by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
 
-    // File picker launcher to import from Cloud / Files
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color(0xFFF8FAFC),
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+            TopAppBar(
+                title = {
                     Text(
                         text = AppStrings.get("settings", lang),
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = LaborTextPrimary
+                        color = Color.White
                     )
-
-                    // Language button 'अ A'
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFEFF6FF),
-                        border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
-                        modifier = Modifier
-                            .clickable { showLanguageDialog = true }
-                            .testTag("topbar_language_btn")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "अ",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LaborBlue
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "A",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LaborBlue
-                            )
-                        }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.navigateTo(Screen.LaborHome) }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
-                }
-            }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
+            )
         }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Profile Card Header
+            // 1. Compact User Profile Header Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Avatar
                         Surface(
                             shape = CircleShape,
-                            color = LaborBlue,
-                            modifier = Modifier.size(52.dp)
+                            color = Color(0xFF0F172A),
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = userProfile.businessName.take(1).uppercase().ifBlank { "L" },
                                     color = Color.White,
-                                    fontSize = 22.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(14.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = userProfile.businessName.ifBlank { "My Business" },
-                                    fontSize = 17.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = LaborTextPrimary
+                                    color = Color(0xFF0F172A)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit name",
+                                    contentDescription = "Edit",
                                     tint = LaborBlue,
                                     modifier = Modifier
-                                        .size(16.dp)
+                                        .size(14.dp)
                                         .clickable {
                                             tempName = userProfile.businessName
                                             showEditNameDialog = true
                                         }
                                 )
                             }
-
-                            Spacer(modifier = Modifier.height(2.dp))
-
                             Text(
-                                text = userProfile.email.ifBlank { "No email connected" },
-                                fontSize = 12.sp,
+                                text = userProfile.email.ifBlank { "Google Account" },
+                                fontSize = 11.5.sp,
                                 color = LaborTextSecondary,
                                 maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis
                             )
-
                             if (userProfile.mobile.isNotBlank()) {
                                 Text(
                                     text = "📞 ${userProfile.mobile}",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     color = LaborTextSecondary
                                 )
                             }
@@ -260,214 +208,144 @@ fun SettingsScreen(
                 }
             }
 
-            // Cloud Cloud Sync Card
-                        // Section: Cloud Backup & Security (Minimal UI)
+            // 2. Compact Group: Cloud Sync & Backup
             item {
-                SettingsGroupCard(title = "Cloud Backup & Security") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showCloudBackupSheet = true }
-                            .padding(horizontal = 14.dp, vertical = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFECFDF5)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CloudDone,
-                                    contentDescription = null,
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Manage Cloud Backup",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = LaborTextPrimary
-                                )
-                                Text(
-                                    text = if (isCloudSyncing || isBackingUp || isRestoring) "Syncing with cloud..." else "Auto-synced & Protected",
-                                    fontSize = 11.sp,
-                                    color = LaborTextSecondary
-                                )
-                            }
-                        }
-                        if (isCloudSyncing || isBackingUp || isRestoring) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = LaborBlue
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
+                CompactSettingsGroup(title = "CLOUD SYNC & BACKUP") {
+                    CompactSettingsRow(
+                        icon = Icons.Default.CloudDone,
+                        iconTint = Color(0xFF10B981),
+                        title = "Cloud Backup & Sync",
+                        subtitle = if (isCloudSyncing || isBackingUp || isRestoring) "Syncing with cloud..." else "Auto-synced & Protected",
+                        showLoading = isCloudSyncing || isBackingUp || isRestoring,
+                        onClick = { showCloudBackupSheet = true }
+                    )
                 }
             }
 
-            // Section: Account & Profile Settings
+            // 3. Compact Group: Account Details
             item {
-                SettingsGroupCard(title = AppStrings.get("profile_info", lang)) {
-                    SettingsRowItem(
+                CompactSettingsGroup(title = "ACCOUNT & BUSINESS") {
+                    CompactSettingsRow(
                         icon = Icons.Default.Business,
+                        iconTint = LaborBlue,
                         title = AppStrings.get("business_name", lang),
-                        subtitle = userProfile.businessName.ifBlank { "Tap to set" },
+                        subtitle = userProfile.businessName.ifBlank { "Set Business Name" },
                         onClick = {
                             tempName = userProfile.businessName
                             showEditNameDialog = true
                         }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
+                    CompactSettingsRow(
                         icon = Icons.Default.Call,
+                        iconTint = LaborBlue,
                         title = AppStrings.get("mobile", lang),
-                        subtitle = userProfile.mobile.ifBlank { "Tap to add number" },
+                        subtitle = userProfile.mobile.ifBlank { "Add Mobile Number" },
                         onClick = {
                             tempMobile = userProfile.mobile
                             showEditMobileDialog = true
                         }
                     )
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
-                        icon = Icons.Default.Language,
-                        title = AppStrings.get("select_language", lang),
-                        subtitle = userProfile.language,
-                        onClick = { showLanguageDialog = true }
-                    )
                 }
             }
 
-            // Section: Data, Reports & Export
+            // 4. Compact Group: Reports & Export
             item {
-                SettingsGroupCard(title = "Data & Reports") {
-                    SettingsRowItem(
+                CompactSettingsGroup(title = "DATA & REPORTS") {
+                    CompactSettingsRow(
                         icon = Icons.Default.PictureAsPdf,
-                        title = "Reports & PDF Hub",
-                        subtitle = "Generate consolidated worker & cash registers",
                         iconTint = Color(0xFFDC2626),
+                        title = "Reports & PDF Hub",
+                        subtitle = "Generate registers & summary PDFs",
                         onClick = { viewModel.navigateTo(Screen.BatchPdfHub) }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
+                    CompactSettingsRow(
                         icon = Icons.Default.TableChart,
-                        title = "Export Data (.CSV)",
-                        subtitle = "Save or share full backup as .CSV spreadsheet",
                         iconTint = Color(0xFF059669),
+                        title = "Export Data (.CSV)",
+                        subtitle = "Save or share spreadsheet backup",
                         onClick = { showCsvOptionsSheet = true }
                     )
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    
                 }
             }
 
-            // Section: About & Support
+            // 5. Compact Group: Support & Legal
             item {
-                SettingsGroupCard(title = "Support & Legal") {
-                    SettingsRowItem(
+                CompactSettingsGroup(title = "SUPPORT & LEGAL") {
+                    CompactSettingsRow(
                         icon = Icons.Default.Policy,
+                        iconTint = Color(0xFF64748B),
                         title = AppStrings.get("privacy_policy", lang),
                         onClick = { viewModel.showMessage("Opening Privacy Policy") }
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
-                        icon = Icons.Default.PictureAsPdf,
-                        title = AppStrings.get("terms_conditions", lang),
-                        onClick = { viewModel.showMessage("Opening Terms & Conditions") }
-                    )
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-                    SettingsRowItem(
+                    CompactSettingsRow(
                         icon = Icons.Default.StarRate,
-                        title = AppStrings.get("rating_feedback", lang),
                         iconTint = Color(0xFFF59E0B),
+                        title = AppStrings.get("rating_feedback", lang),
                         onClick = { viewModel.showMessage("Thank you for rating Laborbook!") }
                     )
                 }
             }
 
-            // Section: Logout
+            // 6. Compact Logout Button
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFFEE2E2)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
                 ) {
-                    SettingsRowItem(
+                    CompactSettingsRow(
                         icon = Icons.Default.Logout,
-                        title = AppStrings.get("logout", lang),
-                        subtitle = "Auto-backs up records before signing out",
                         iconTint = Color(0xFFDC2626),
+                        title = AppStrings.get("logout", lang),
+                        subtitle = "Auto-backs up before sign out",
                         titleColor = Color(0xFFDC2626),
                         onClick = { showLogoutConfirmDialog = true }
                     )
                 }
             }
 
-            // Footer
+            // 7. Compact Footer
             item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Laborbook v2.5.0",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = LaborTextSecondary
-                    )
-                    Text(
-                        text = "100% Offline-First & Cloud Backup",
-                        fontSize = 11.sp,
+                        text = "Laborbook v2.5.0 • Offline-First & Cloud Sync",
+                        fontSize = 11.5.sp,
                         color = Color(0xFF94A3B8)
                     )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
                     Surface(
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(20.dp),
                         color = Color(0xFFF5F3FF),
                         border = BorderStroke(1.dp, Color(0xFFDDD6FE))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
                                 tint = Color(0xFFE11D48),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "App Made by Vikash",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF6D28D9),
-                                style = androidx.compose.ui.text.TextStyle(
-                                    letterSpacing = 0.5.sp
-                                )
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6D28D9)
                             )
                         }
                     }
@@ -476,98 +354,82 @@ fun SettingsScreen(
         }
     }
 
-    // Cloud Backup & Restore Bottom Sheet
-    var backupRefreshKey by remember { mutableStateOf(0) }
-    
-
+    // Cloud Backup Sheet
     if (showCloudBackupSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
         ModalBottomSheet(
             onDismissRequest = { showCloudBackupSheet = false },
-            sheetState = sheetState,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Sheet Header
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEFF6FF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudSync,
-                                contentDescription = null,
-                                tint = LaborBlue,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Cloud Backup & Restore",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LaborTextPrimary
-                            )
-                            Text(
-                                text = userProfile.email.ifBlank { "Google Account" },
-                                fontSize = 12.sp,
-                                color = LaborTextSecondary,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                            )
-                        }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFEFF6FF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = LaborBlue,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Cloud Backup & Restore",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = LaborTextPrimary
+                        )
+                        Text(
+                            text = userProfile.email.ifBlank { "Google Account" },
+                            fontSize = 11.5.sp,
+                            color = LaborTextSecondary
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Action List
-                SettingsGroupCard(title = "Cloud Actions") {
-                    SettingsRowItem(
+                CompactSettingsGroup(title = "ACTIONS") {
+                    CompactSettingsRow(
                         icon = Icons.Default.CloudUpload,
+                        iconTint = Color(0xFF10B981),
                         title = if (isBackingUp) "Saving..." else "Backup to Cloud",
                         subtitle = "Save current state to Firebase",
-                        iconTint = Color(0xFF10B981),
                         onClick = {
                             if (!isBackingUp) {
                                 isBackingUp = true
-                                viewModel.backupToCloudNow() { success, msg ->
+                                viewModel.backupToCloudNow { success, msg ->
                                     isBackingUp = false
-                                    backupRefreshKey++
                                     viewModel.showMessage(msg)
                                 }
                             }
                         }
                     )
-                    
                     HorizontalDivider(color = Color(0xFFF1F5F9))
-
-                    SettingsRowItem(
+                    CompactSettingsRow(
                         icon = Icons.Default.CloudDownload,
+                        iconTint = LaborBlue,
                         title = if (isRestoring) "Restoring..." else "Restore from Cloud",
                         subtitle = "Load previous state from Firebase",
-                        iconTint = LaborBlue,
                         onClick = {
                             if (!isRestoring) {
                                 isRestoring = true
                                 viewModel.restoreFromCloudNow { success, msg ->
                                     isRestoring = false
-                                    backupRefreshKey++
                                     viewModel.showMessage(msg)
                                     if (success) showCloudBackupSheet = false
                                 }
@@ -576,47 +438,25 @@ fun SettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 
-    var isLoggingOut by remember { mutableStateOf(false) }
-
     // Logout Confirmation Dialog
     if (showLogoutConfirmDialog) {
+        var isLoggingOut by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { if (!isLoggingOut) showLogoutConfirmDialog = false },
-            title = { 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Logout,
-                        contentDescription = null,
-                        tint = Color(0xFFDC2626),
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(AppStrings.get("logout", lang), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
+            title = {
+                Text(AppStrings.get("logout", lang), fontWeight = FontWeight.Bold, fontSize = 16.sp)
             },
-            text = { 
-                Column {
-                    Text(
-                        text = "Are you sure you want to log out?",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = LaborTextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Your records will be automatically saved to Cloud (${userProfile.email}) before sign out.",
-                        fontSize = 12.sp,
-                        color = LaborTextSecondary,
-                        lineHeight = 16.sp
-                    )
-                }
+            text = {
+                Text(
+                    text = "Your records will be automatically saved to Cloud before sign out.",
+                    fontSize = 13.sp,
+                    color = LaborTextSecondary
+                )
             },
             confirmButton = {
                 Button(
@@ -633,82 +473,20 @@ fun SettingsScreen(
                 ) {
                     if (isLoggingOut) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(14.dp),
                             color = Color.White,
                             strokeWidth = 2.dp
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Logging out...", color = Color.White, fontSize = 12.sp)
                     } else {
-                        Text("Save & Logout", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Logout", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             },
             dismissButton = {
                 if (!isLoggingOut) {
                     TextButton(onClick = { showLogoutConfirmDialog = false }) {
-                        Text(AppStrings.get("cancel", lang), color = LaborTextSecondary)
+                        Text(AppStrings.get("cancel", lang), color = LaborTextSecondary, fontSize = 13.sp)
                     }
-                }
-            }
-        )
-    }
-
-    // Language Selector Dialog
-    if (showLanguageDialog) {
-        val languages = listOf("English", "Hindi (हिंदी)", "Marathi (मराठी)", "Gujarati (ગુજરાતી)", "Bengali (বাংলা)", "Tamil (தமிழ்)")
-        AlertDialog(
-            onDismissRequest = { showLanguageDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Translate, contentDescription = null, tint = LaborBlue, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(AppStrings.get("select_language", lang), fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-            },
-            text = {
-                Column {
-                    languages.forEach { languageName ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setLanguage(languageName)
-                                    viewModel.showMessage("Language changed to $languageName")
-                                    showLanguageDialog = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = languageName,
-                                fontSize = 14.sp,
-                                fontWeight = if (userProfile.language == languageName) FontWeight.Bold else FontWeight.Normal,
-                                color = if (userProfile.language == languageName) LaborBlue else LaborTextPrimary
-                            )
-                            if (userProfile.language == languageName) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFEFF6FF)
-                                ) {
-                                    Text(
-                                        text = "Active",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LaborBlue,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLanguageDialog = false }) {
-                    Text(AppStrings.get("ok", lang))
                 }
             }
         )
@@ -717,13 +495,13 @@ fun SettingsScreen(
     if (showEditNameDialog) {
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
-            title = { Text(AppStrings.get("business_name", lang), fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = { Text(AppStrings.get("business_name", lang), fontWeight = FontWeight.Bold, fontSize = 15.sp) },
             text = {
                 OutlinedTextField(
                     value = tempName,
                     onValueChange = { tempName = it },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     singleLine = true
                 )
             },
@@ -737,7 +515,7 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
                 ) {
-                    Text(AppStrings.get("save", lang), color = Color.White)
+                    Text(AppStrings.get("save", lang), color = Color.White, fontSize = 13.sp)
                 }
             }
         )
@@ -746,14 +524,14 @@ fun SettingsScreen(
     if (showEditMobileDialog) {
         AlertDialog(
             onDismissRequest = { showEditMobileDialog = false },
-            title = { Text(AppStrings.get("mobile", lang), fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = { Text(AppStrings.get("mobile", lang), fontWeight = FontWeight.Bold, fontSize = 15.sp) },
             text = {
                 OutlinedTextField(
                     value = tempMobile,
                     onValueChange = { tempMobile = it },
                     placeholder = { Text("Enter Mobile Number") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     singleLine = true
                 )
             },
@@ -767,62 +545,39 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
                 ) {
-                    Text(AppStrings.get("save", lang), color = Color.White)
+                    Text(AppStrings.get("save", lang), color = Color.White, fontSize = 13.sp)
                 }
             }
         )
     }
 
-    // CSV Backup & Export Options Bottom Sheet
+    // CSV Backup Options Bottom Sheet
     if (showCsvOptionsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showCsvOptionsSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFECFDF5)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.TableChart,
-                            contentDescription = null,
-                            tint = Color(0xFF059669),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Full App CSV Backup",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = LaborTextPrimary
-                        )
-                        Text(
-                            text = "Export all worker attendance & cash records",
-                            fontSize = 12.sp,
-                            color = LaborTextSecondary
-                        )
-                    }
-                }
+                Text(
+                    text = "Full App CSV Backup",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LaborTextPrimary
+                )
+                Text(
+                    text = "Export worker attendance & cash records",
+                    fontSize = 11.5.sp,
+                    color = LaborTextSecondary
+                )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Option 1: Direct Save to Device (Downloads)
                 Button(
                     onClick = {
                         viewModel.saveCsvBackupToDevice(context) { success, msg ->
@@ -832,61 +587,46 @@ fun SettingsScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
-                        .testTag("save_csv_device_direct_btn"),
-                    shape = RoundedCornerShape(10.dp),
+                        .height(42.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
                 ) {
                     Icon(
                         imageVector = Icons.Default.FileDownload,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Save to Device (Downloads)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color.White
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "Save to Device", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Color.White)
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Option 2: Share / Send CSV File
                 OutlinedButton(
                     onClick = {
                         viewModel.exportAndShareBackupCsv(context) { success, msg ->
-                            if (!success) {
-                                viewModel.showMessage(msg)
-                            }
+                            if (!success) viewModel.showMessage(msg)
                         }
                         showCsvOptionsSheet = false
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
-                        .testTag("share_csv_file_btn"),
-                    shape = RoundedCornerShape(10.dp),
+                        .height(42.dp),
+                    shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, Color(0xFF059669))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = null,
                         tint = Color(0xFF059669),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Share .CSV via WhatsApp / Email",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Color(0xFF059669)
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "Share CSV File", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Color(0xFF059669))
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
@@ -897,26 +637,7 @@ fun SettingsGroupCard(
     title: String,
     content: @Composable () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = LaborTextSecondary,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                content()
-            }
-        }
-    }
+    CompactSettingsGroup(title = title, content = content)
 }
 
 @Composable
@@ -928,11 +649,58 @@ fun SettingsRowItem(
     titleColor: Color = LaborTextPrimary,
     onClick: () -> Unit
 ) {
+    CompactSettingsRow(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        iconTint = iconTint,
+        titleColor = titleColor,
+        onClick = onClick
+    )
+}
+
+@Composable
+fun CompactSettingsGroup(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF64748B),
+            modifier = Modifier.padding(start = 2.dp, bottom = 4.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun CompactSettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    iconTint: Color = LaborBlue,
+    titleColor: Color = LaborTextPrimary,
+    showLoading: Boolean = false,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -942,8 +710,8 @@ fun SettingsRowItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(iconTint.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -951,15 +719,15 @@ fun SettingsRowItem(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconTint,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = titleColor
                 )
                 if (subtitle != null) {
@@ -971,11 +739,19 @@ fun SettingsRowItem(
                 }
             }
         }
-        Icon(
-            imageVector = Icons.Default.KeyboardArrowRight,
-            contentDescription = null,
-            tint = Color(0xFF94A3B8),
-            modifier = Modifier.size(18.dp)
-        )
+        if (showLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(14.dp),
+                strokeWidth = 2.dp,
+                color = LaborBlue
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(16.dp)
+            )
+        }
     }
 }

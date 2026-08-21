@@ -36,8 +36,10 @@ data class DailyAttendance(
     val fullDate: String = "",  // "2026-08-01"
     val status: AttendanceStatus = AttendanceStatus.UNMARKED,
     val overtimeHours: Double = 0.0,
+    val overtimeRate: Double = 0.0,
     val advanceAmount: Double = 0.0,
-    val note: String = ""
+    val note: String = "",
+    val paymentMethod: PaymentMethod = PaymentMethod.ONLINE
 )
 
 data class WorkerMonthStats(
@@ -45,7 +47,12 @@ data class WorkerMonthStats(
     val absentCount: Double = 0.0,
     val overtimeHours: Double = 0.0,
     val totalAdvance: Double = 0.0,
-    val estimatedEarnings: Double = 0.0
+    val estimatedEarnings: Double = 0.0,
+    val halfDayCount: Double = 0.0,
+    val doubleCount: Double = 0.0,
+    val presentHalfCount: Double = 0.0,
+    val paidLeaveCount: Double = 0.0,
+    val balance: Double = 0.0
 )
 
 data class LaborWorker(
@@ -83,31 +90,56 @@ data class LaborWorker(
         var absent = 0.0
         var ot = 0.0
         var adv = 0.0
+        var halfDays = 0.0
+        var doubles = 0.0
+        var presentHalfs = 0.0
+        var paidLeaves = 0.0
+        var totalOtAmount = 0.0
+        val defaultOtRatePerHour = if (dailyWage > 0) (dailyWage / 8.0) * 1.5 else 0.0
 
         for (rec in monthAtt.values) {
             when (rec.status) {
-                AttendanceStatus.PRESENT, AttendanceStatus.OVERTIME -> present += 1.0
+                AttendanceStatus.PRESENT -> present += 1.0
+                AttendanceStatus.OVERTIME -> present += 1.0
                 AttendanceStatus.HALF_DAY -> {
                     present += 0.5
                     absent += 0.5
+                    halfDays += 1.0
                 }
-                AttendanceStatus.PRESENT_HALF -> present += 1.5
-                AttendanceStatus.DOUBLE -> present += 2.0
-                AttendanceStatus.PAID_LEAVE -> present += 1.0
+                AttendanceStatus.PRESENT_HALF -> {
+                    present += 1.5
+                    presentHalfs += 1.0
+                }
+                AttendanceStatus.DOUBLE -> {
+                    present += 2.0
+                    doubles += 1.0
+                }
+                AttendanceStatus.PAID_LEAVE -> {
+                    present += 1.0
+                    paidLeaves += 1.0
+                }
                 AttendanceStatus.ABSENT -> absent += 1.0
                 AttendanceStatus.UNMARKED -> {}
             }
             ot += rec.overtimeHours
             adv += rec.advanceAmount
+
+            val effectiveRate = if (rec.overtimeRate > 0.0) rec.overtimeRate else defaultOtRatePerHour
+            totalOtAmount += (rec.overtimeHours * effectiveRate)
         }
 
-        val netEarnings = (present * dailyWage) + (ot * (dailyWage / 8.0) * 1.5) - adv
+        val netEarnings = (present * dailyWage) + totalOtAmount - adv
         return WorkerMonthStats(
             presentCount = present,
             absentCount = absent,
             overtimeHours = ot,
             totalAdvance = adv,
-            estimatedEarnings = netEarnings
+            estimatedEarnings = netEarnings,
+            halfDayCount = halfDays,
+            doubleCount = doubles,
+            presentHalfCount = presentHalfs,
+            paidLeaveCount = paidLeaves,
+            balance = netEarnings
         )
     }
 

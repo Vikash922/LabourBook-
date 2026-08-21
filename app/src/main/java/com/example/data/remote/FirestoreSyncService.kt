@@ -8,25 +8,46 @@ import com.example.domain.model.UserProfile
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.PersistentCacheSettings
 import kotlinx.coroutines.tasks.await
 
 object FirestoreSyncService {
     private const val TAG = "FirestoreSyncService"
+    private var isFirestoreConfigured = false
 
-    private fun isFirebaseAvailable(context: Context? = null): Boolean {
+    private fun getFirestoreInstance(context: Context? = null): FirebaseFirestore? {
         return try {
             if (context != null && FirebaseApp.getApps(context).isEmpty()) {
                 try {
                     FirebaseApp.initializeApp(context)
-                } catch (e: Throwable) {
-                    // Ignored
+                } catch (_: Throwable) {}
+            }
+            if (FirebaseApp.getApps(context ?: FirebaseApp.getInstance().applicationContext).isEmpty()) {
+                return null
+            }
+
+            val db = FirebaseFirestore.getInstance()
+            if (!isFirestoreConfigured) {
+                try {
+                    val settings = FirebaseFirestoreSettings.Builder()
+                        .setLocalCacheSettings(PersistentCacheSettings.newBuilder().build())
+                        .build()
+                    db.firestoreSettings = settings
+                    isFirestoreConfigured = true
+                } catch (_: Throwable) {
+                    // Settings might already be locked if instance was accessed earlier
                 }
             }
-            FirebaseApp.getApps(context ?: FirebaseApp.getInstance().applicationContext).isNotEmpty()
+            db
         } catch (e: Throwable) {
-            false
+            null
         }
+    }
+
+    private fun isFirebaseAvailable(context: Context? = null): Boolean {
+        return getFirestoreInstance(context) != null
     }
 
     suspend fun syncDataToCloud(
@@ -35,18 +56,25 @@ object FirestoreSyncService {
         transactions: List<CashTransaction>,
         context: Context? = null
     ): Result<String> {
-        if (!isFirebaseAvailable(context)) {
-            Log.d(TAG, "Sync skipped: FirebaseApp is not initialized on this device.")
-            return Result.failure(Exception("Cloud sync unavailable: Firebase not initialized"))
-        }
+        val db = getFirestoreInstance(context)
+            ?: return Result.failure(Exception("Cloud sync unavailable: Firebase not initialized"))
+
         return try {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid 
-                ?: return Result.failure(Exception("No user logged in"))
-            val db = FirebaseFirestore.getInstance()
-            val userDoc = db.collection("users").document(uid)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: profile.email
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            
+            if (userDoc == null && userEmail.isNotBlank()) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+
+            if (userDoc == null) {
+                return Result.failure(Exception("No user logged in and no email provided"))
+            }
 
             // 1. Save Profile
-            userDoc.collection("profile").document("settings").set(profile, SetOptions.merge()).await()
+            userDoc.collection("profile").document("settings").set(profile, SetOptions.merge())
 
             // 2. Save Workers
             var batch = db.batch()
@@ -56,8 +84,9 @@ object FirestoreSyncService {
                 val docRef = userDoc.collection("workers").document(worker.id)
                 batch.set(docRef, worker, SetOptions.merge())
                 operationCount++
+
                 if (operationCount >= 450) {
-                    batch.commit().await()
+                    batch.commit()
                     batch = db.batch()
                     operationCount = 0
                 }
@@ -68,14 +97,16 @@ object FirestoreSyncService {
                 val docRef = userDoc.collection("payments").document(tx.id)
                 batch.set(docRef, tx, SetOptions.merge())
                 operationCount++
+
                 if (operationCount >= 450) {
-                    batch.commit().await()
+                    batch.commit()
                     batch = db.batch()
                     operationCount = 0
                 }
             }
+
             if (operationCount > 0) {
-                batch.commit().await()
+                batch.commit()
             }
 
             Result.success("Synced successfully (${workers.size} workers, ${transactions.size} transactions).")
@@ -85,27 +116,48 @@ object FirestoreSyncService {
         }
     }
 
-    suspend fun downloadDataFromCloud(context: Context? = null): Result<BackupData> {
-        if (!isFirebaseAvailable(context)) {
-            Log.d(TAG, "Download skipped: FirebaseApp is not initialized on this device.")
-            return Result.failure(Exception("Cloud sync unavailable: Firebase not initialized"))
-        }
+    suspend fun downloadDataFromCloud(context: Context? = null, fallbackEmail: String? = null): Result<BackupData> {
+        val db = getFirestoreInstance(context)
+            ?: return Result.failure(Exception("Cloud sync unavailable: Firebase not initialized"))
+
         return try {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid 
-                ?: return Result.failure(Exception("No user logged in"))
-            val db = FirebaseFirestore.getInstance()
-            val userDoc = db.collection("users").document(uid)
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: fallbackEmail
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            
+            if (userDoc == null && userEmail != null) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+
+            if (userDoc == null) {
+                return Result.failure(Exception("No user logged in and no fallback email provided"))
+            }
 
             // Fetch Profile
-            val profileDoc = userDoc.collection("profile").document("settings").get().await()
-            val profile = profileDoc.toObject(UserProfile::class.java) ?: UserProfile(isLoggedIn = true)
+            var profileDoc = userDoc.collection("profile").document("settings").get().await()
+            var workersRes = userDoc.collection("workers").get().await()
+            var txRes = userDoc.collection("payments").get().await()
+            
+            // IF EMPTY AND WE HAVE AN EMAIL, TRY TO FETCH BY LEGACY EMAIL ID!
+            if (workersRes.documents.isEmpty() && txRes.documents.isEmpty() && userEmail != null && uid != null) {
+                val legacyUserDoc = db.collection("users").document(userEmail.lowercase())
+                val legacyWorkersRes = legacyUserDoc.collection("workers").get().await()
+                if (legacyWorkersRes.documents.isNotEmpty()) {
+                    userDoc = legacyUserDoc
+                    profileDoc = userDoc.collection("profile").document("settings").get().await()
+                    workersRes = legacyWorkersRes
+                    txRes = userDoc.collection("payments").get().await()
+                }
+            }
+
+            val profile = profileDoc.toObject(UserProfile::class.java) ?: UserProfile(isLoggedIn = true, email = userEmail ?: "")
 
             // Fetch Workers
-            val workersRes = userDoc.collection("workers").get().await()
-            val workers = workersRes.documents.mapNotNull { it.toObject(LaborWorker::class.java) }
+            val rawWorkers = workersRes.documents.mapNotNull { it.toObject(LaborWorker::class.java) }
+            val workers = rawWorkers
 
             // Fetch Transactions
-            val txRes = userDoc.collection("payments").get().await()
             val transactions = txRes.documents.mapNotNull { it.toObject(CashTransaction::class.java) }
 
             val backup = BackupData(
@@ -123,20 +175,36 @@ object FirestoreSyncService {
             Result.failure(e)
         }
     }
-    
+
     suspend fun deleteWorker(workerId: String, context: Context? = null) {
-        if (!isFirebaseAvailable(context)) return
+        val db = getFirestoreInstance(context) ?: return
         try {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-            FirebaseFirestore.getInstance().collection("users").document(uid).collection("workers").document(workerId).delete().await()
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            if (userDoc == null && userEmail != null) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+            if (userDoc != null) {
+                userDoc.collection("workers").document(workerId).delete()
+            }
         } catch (e: Exception) { }
     }
     
     suspend fun deleteTransaction(txId: String, context: Context? = null) {
-        if (!isFirebaseAvailable(context)) return
+        val db = getFirestoreInstance(context) ?: return
         try {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-            FirebaseFirestore.getInstance().collection("users").document(uid).collection("payments").document(txId).delete().await()
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            if (userDoc == null && userEmail != null) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+            if (userDoc != null) {
+                userDoc.collection("payments").document(txId).delete()
+            }
         } catch (e: Exception) { }
     }
 }

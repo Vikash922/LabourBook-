@@ -89,40 +89,40 @@ fun LaborWorkerCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Avatar Circle
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(avatarBgColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = initial,
-                        fontSize = 20.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black
                     )
                 }
                     
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                     
                 // Name and Phone
                 Column {
                     Text(
                         text = worker.name,
-                        fontSize = 18.sp,
+                        fontSize = 15.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
                     if (worker.phoneNumber.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = worker.phoneNumber,
-                            fontSize = 15.sp,
+                            fontSize = 13.sp,
                             color = Color(0xFF4B5563)
                         )
                     }

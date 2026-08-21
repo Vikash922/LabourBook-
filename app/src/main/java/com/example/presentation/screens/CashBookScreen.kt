@@ -43,7 +43,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.model.CashTransaction
@@ -66,6 +67,7 @@ import com.example.presentation.components.TransactionEditBottomSheet
 import com.example.presentation.components.TransactionViewBottomSheet
 import com.example.presentation.theme.LaborBackground
 import com.example.presentation.theme.LaborBlue
+import com.example.presentation.theme.LaborBlueLight
 import com.example.presentation.theme.LaborDivider
 import com.example.presentation.theme.LaborError
 import com.example.presentation.theme.LaborSuccess
@@ -85,22 +87,23 @@ fun CashBookScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val transactions by viewModel.filteredTransactions.collectAsState()
-    val allTransactions by viewModel.transactions.collectAsState()
-    val selectedMonth by viewModel.selectedMonth.collectAsState()
-    val searchQuery by viewModel.transactionSearchQuery.collectAsState()
-    val userProfile by viewModel.userProfile.collectAsState()
+    val transactions by viewModel.filteredTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.transactions.collectAsStateWithLifecycle()
+    val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.transactionSearchQuery.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val lang = userProfile.language
 
-    val activeTransaction by viewModel.activeTransaction.collectAsState()
-    val sheetMode by viewModel.transactionSheetMode.collectAsState()
+    val activeTransaction by viewModel.activeTransaction.collectAsStateWithLifecycle()
+    val sheetMode by viewModel.transactionSheetMode.collectAsStateWithLifecycle()
 
     var showMonthDialog by remember { mutableStateOf(false) }
 
     // Filter transactions based on selected month if specific month selected
     val displayTransactions = remember(transactions, selectedMonth) {
+        val nonZeroList = transactions.filter { it.amount > 0.0 }
         if (selectedMonth == "All Months" || selectedMonth.isBlank()) {
-            transactions
+            nonZeroList
         } else {
             // E.g. "Aug 2026" matches "2026-08" or "Aug"
             val monthMap = mapOf(
@@ -110,13 +113,19 @@ fun CashBookScreen(
             )
             val monthPart = selectedMonth.take(3)
             val monthNum = monthMap[monthPart]
-            transactions.filter { tx ->
-                if (monthNum != null && tx.fullDate.contains("-$monthNum-")) true
-                else tx.dateDisplay.contains(monthPart, ignoreCase = true) || tx.fullDate.contains(selectedMonth)
-            }.ifEmpty {
-                // If filtered list is empty but we have transactions, don't hide everything if month matching format differs
-                transactions.filter { it.dateDisplay.contains(monthPart, ignoreCase = true) || it.notes.contains(monthPart, ignoreCase = true) }
-            }.ifEmpty { transactions }
+            val parts = selectedMonth.split(" ")
+            val yearPart = if (parts.size >= 2) parts[1] else "2026"
+
+            nonZeroList.filter { tx ->
+                val matchFullDate = if (monthNum != null && yearPart.isNotBlank()) {
+                    tx.fullDate.startsWith("$yearPart-$monthNum") || tx.fullDate.contains("-$monthNum-")
+                } else false
+
+                val matchDisplayDate = tx.dateDisplay.contains(monthPart, ignoreCase = true) &&
+                        (yearPart.isBlank() || tx.dateDisplay.contains(yearPart) || tx.fullDate.contains(yearPart))
+
+                matchFullDate || matchDisplayDate
+            }
         }
     }
 
@@ -147,12 +156,12 @@ fun CashBookScreen(
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = LaborBackground,
+            containerColor = Color.White,
             topBar = {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color.White,
-                    shadowElevation = 2.dp
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier
@@ -168,38 +177,38 @@ fun CashBookScreen(
                             color = Color.Black
                         )
 
-                        // Month Selector Pill (Calendar icon + Month + chevron) -> Functional Calendar Click
+                        // Month Selector Pill (Calendar icon + Month + chevron)
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFE5E7EB),
-                            border = BorderStroke(1.dp, Color(0xFF9CA3AF)),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFCCCCCC)),
                             modifier = Modifier
                                 .clickable { showMonthDialog = true }
                                 .testTag("cashbook_month_selector_pill")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarMonth,
                                     contentDescription = "Select Calendar Month",
-                                    tint = LaborBlue,
+                                    tint = Color.Black,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = selectedMonth,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = LaborTextPrimary
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = Icons.Default.KeyboardArrowDown,
                                     contentDescription = null,
-                                    tint = LaborTextSecondary,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -211,48 +220,51 @@ fun CashBookScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color.White,
-                    shadowElevation = 8.dp
+                    shadowElevation = 0.dp
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // '+ CASH IN'
-                        Button(
-                            onClick = { viewModel.openNewTransaction(TransactionType.CASH_IN) },
+                    Column {
+                        HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("btn_cash_in"),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = LaborSuccess)
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = AppStrings.get("cash_in", lang),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
+                            // '+ CASH IN'
+                            Button(
+                                onClick = { viewModel.openNewTransaction(TransactionType.CASH_IN) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_cash_in"),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00875A))
+                            ) {
+                                Text(
+                                    text = "+ ${AppStrings.get("cash_in", lang).uppercase()}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
 
-                        // '- CASH OUT'
-                        Button(
-                            onClick = { viewModel.openNewTransaction(TransactionType.CASH_OUT) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .testTag("btn_cash_out"),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = LaborError)
-                        ) {
-                            Text(
-                                text = AppStrings.get("cash_out", lang),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                            // '- CASH OUT'
+                            Button(
+                                onClick = { viewModel.openNewTransaction(TransactionType.CASH_OUT) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("btn_cash_out"),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
+                            ) {
+                                Text(
+                                    text = "- ${AppStrings.get("cash_out", lang).uppercase()}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -262,51 +274,54 @@ fun CashBookScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 // Search Bar
                 item {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.onTransactionSearchQueryChanged(it) },
-                        placeholder = { Text(AppStrings.get("search_transactions", lang), color = LaborTextHint, fontSize = 14.sp) },
+                        placeholder = { Text(AppStrings.get("search_transactions", lang), color = Color(0xFF8E8E93), fontSize = 13.sp) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Search",
-                                tint = Color.Gray,
+                                tint = Color(0xFF1D61E7),
                                 modifier = Modifier.size(20.dp)
                             )
                         },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                             .testTag("tx_search_input"),
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LaborBlue,
-                            unfocusedBorderColor = Color(0xFF9CA3AF),
+                            focusedBorderColor = Color(0xFF1E293B),
+                            unfocusedBorderColor = Color(0xFFCBD5E1),
                             focusedContainerColor = Color.White,
                             unfocusedContainerColor = Color.White
                         )
                     )
                 }
 
-                item { Spacer(modifier = Modifier.height(14.dp)) }
+                item { Spacer(modifier = Modifier.height(2.dp)) }
 
                 // Summary Card
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        shape = RoundedCornerShape(8.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        border = BorderStroke(1.dp, Color(0xFF9CA3AF))
+                        border = BorderStroke(1.2.dp, Color(0xFFCBD5E1))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(12.dp)
                         ) {
                             // Row 1: Cash In
                             Row(
@@ -316,18 +331,18 @@ fun CashBookScreen(
                             ) {
                                 Text(
                                     text = AppStrings.get("cash_in_label", lang),
-                                    fontSize = 14.sp,
-                                    color = LaborTextSecondary
+                                    fontSize = 13.5.sp,
+                                    color = Color(0xFF475569)
                                 )
                                 Text(
                                     text = "₹ ${cashInTotal.toInt()}",
-                                    fontSize = 15.sp,
+                                    fontSize = 14.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = LaborSuccess
+                                    color = Color(0xFF059669) // Green
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             // Row 2: Cash Out
                             Row(
@@ -337,20 +352,20 @@ fun CashBookScreen(
                             ) {
                                 Text(
                                     text = AppStrings.get("cash_out_label", lang),
-                                    fontSize = 14.sp,
-                                    color = LaborTextSecondary
+                                    fontSize = 13.5.sp,
+                                    color = Color(0xFF475569)
                                 )
                                 Text(
                                     text = "₹ ${cashOutTotal.toInt()}",
-                                    fontSize = 15.sp,
+                                    fontSize = 14.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = LaborError
+                                    color = Color(0xFFDC2626) // Red
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = LaborDivider, thickness = 0.5.dp)
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             // Row 3: Balance
                             Row(
@@ -362,34 +377,33 @@ fun CashBookScreen(
                                     text = AppStrings.get("balance", lang),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Black
+                                    color = Color(0xFF0F172A)
                                 )
                                 Text(
                                     text = "₹ ${balance.toInt()}",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.Black
+                                    color = if (balance >= 0) Color(0xFF059669) else Color(0xFFDC2626)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             // 'View Report' light blue pill button
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0xFFEFF6FF))
                                     .clickable { viewModel.navigateTo(Screen.CashBookReport) }
-                                    .padding(vertical = 10.dp)
-                                    .testTag("cashbook_view_report_btn"),
+                                    .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.Description,
                                         contentDescription = null,
-                                        tint = LaborBlue,
+                                        tint = Color(0xFF1D61E7),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -397,7 +411,7 @@ fun CashBookScreen(
                                         text = AppStrings.get("view_report", lang),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = LaborBlue
+                                        color = Color(0xFF1D61E7)
                                     )
                                 }
                             }
@@ -405,7 +419,7 @@ fun CashBookScreen(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item { Spacer(modifier = Modifier.height(10.dp)) }
 
                 // Transaction List / Empty State
                 if (displayTransactions.isEmpty()) {
@@ -413,65 +427,74 @@ fun CashBookScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 40.dp),
+                                .padding(vertical = 30.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = AppStrings.get("no_transactions", lang),
-                                fontSize = 15.sp,
-                                color = LaborTextSecondary
+                                fontSize = 14.sp,
+                                color = Color(0xFF64748B)
                             )
                         }
                     }
                 } else {
-                    // Entire Table in one Card
+                    // Entire Structured Compact Table matching reference screenshot
                     item {
-                        Surface(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                ,
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.dp, Color(0xFF9CA3AF))
+                                .padding(horizontal = 12.dp),
+                            shape = RoundedCornerShape(4.dp),
+                            border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
-                            Column {
-                                // Header Row
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                // Table Header Row with Vertical Dividers
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .background(Color(0xFFF9FAFB))
                                         .height(IntrinsicSize.Min),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = AppStrings.get("date", lang),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.Black,
-                                        modifier = Modifier.weight(0.25f).padding(vertical = 12.dp),
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827),
+                                        modifier = Modifier
+                                            .weight(0.22f)
+                                            .padding(vertical = 8.dp),
                                         textAlign = TextAlign.Center
                                     )
-                                    VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                    VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
                                         text = AppStrings.get("notes", lang),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.Black,
-                                        modifier = Modifier.weight(0.45f).padding(horizontal = 12.dp, vertical = 12.dp)
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827),
+                                        modifier = Modifier
+                                            .weight(0.48f)
+                                            .padding(horizontal = 8.dp, vertical = 8.dp)
                                     )
-                                    VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                    VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
-                                        text = AppStrings.get("amount", lang),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.Black,
-                                        modifier = Modifier.weight(0.3f).padding(horizontal = 12.dp, vertical = 12.dp),
-                                        textAlign = TextAlign.Center
+                                        text = "₹ " + AppStrings.get("amount", lang),
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827),
+                                        modifier = Modifier
+                                            .weight(0.30f)
+                                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                                        textAlign = TextAlign.End
                                     )
                                 }
-                                
-                                // Items
+
+                                HorizontalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp)
+
+                                // Table Items with Vertical Grid Dividers
                                 displayTransactions.forEachIndexed { index, tx ->
-                                    HorizontalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp)
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -480,74 +503,93 @@ fun CashBookScreen(
                                             .height(IntrinsicSize.Min),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Date Column
-                                        Column(
-                                            modifier = Modifier.weight(0.25f).padding(vertical = 12.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally
-                                        ) {
-                                            val parts = tx.dateDisplay.split(" ")
-                                            val dayPart = parts.firstOrNull() ?: "15"
-                                            val weekPart = parts.getOrNull(1) ?: "Sat"
+                                        val (dayNum, dayName) = parseDayAndWeek(tx.fullDate, tx.dateDisplay, tx.timestamp)
 
+                                        // Date Column (Stacked Day Number & Day Name, Centered)
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(0.22f)
+                                                .padding(vertical = 6.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
                                             Text(
-                                                text = dayPart,
-                                                fontSize = 15.sp,
+                                                text = dayNum,
+                                                fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.Black
+                                                color = Color(0xFF111827)
                                             )
                                             Text(
-                                                text = weekPart,
-                                                fontSize = 12.sp,
-                                                color = LaborTextSecondary
+                                                text = dayName,
+                                                fontSize = 10.sp,
+                                                color = Color(0xFF6B7280)
                                             )
                                         }
 
-                                        VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                        VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
-                                        // Notes & Payment Method Caption
+                                        // Notes & Payment Method Column
                                         Column(
-                                            modifier = Modifier.weight(0.45f).padding(horizontal = 12.dp, vertical = 12.dp)
+                                            modifier = Modifier
+                                                .weight(0.48f)
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
-                                                text = tx.notes.ifBlank { if (tx.type == TransactionType.CASH_IN) "Income" else "Expense" },
-                                                fontSize = 15.sp,
-                                                color = Color.Black
+                                                text = tx.notes.ifBlank { "-" },
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Color(0xFF111827),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                text = tx.paymentMethod.name,
-                                                fontSize = 12.sp,
-                                                color = LaborTextSecondary
+                                                text = tx.paymentMethod.name.uppercase(),
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF6B7280)
                                             )
                                         }
 
-                                        VerticalDivider(color = Color(0xFF9CA3AF), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                        VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
-                                        // ₹ Amount + Chevron
+                                        // Amount Column with Chevron Arrow
                                         Row(
-                                            modifier = Modifier.weight(0.3f).padding(horizontal = 12.dp, vertical = 12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier
+                                                .weight(0.30f)
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.End,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            val formattedAmount = if (tx.amount % 1.0 == 0.0) {
+                                                "${tx.amount.toInt()}"
+                                            } else {
+                                                "${tx.amount}"
+                                            }
                                             Text(
-                                                text = "₹${tx.amount.toInt()}",
-                                                fontSize = 15.sp,
+                                                text = "₹$formattedAmount",
+                                                fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (tx.type == TransactionType.CASH_IN) LaborSuccess else LaborError
+                                                color = if (tx.type == TransactionType.CASH_IN) Color(0xFF16A34A) else Color(0xFFDC2626)
                                             )
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Icon(
                                                 imageVector = Icons.Default.KeyboardArrowRight,
                                                 contentDescription = null,
-                                                tint = LaborTextHint,
+                                                tint = Color(0xFF9CA3AF),
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
+                                    }
+                                    if (index < displayTransactions.size - 1) {
+                                        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
                                     }
                                 }
                             }
                         }
                     }
-                    
-                    item { Spacer(modifier = Modifier.height(60.dp)) }
+
+                    item { Spacer(modifier = Modifier.height(16.dp)) }
                 }
             }
         }
@@ -596,3 +638,29 @@ fun CashBookScreen(
     }
 }
 
+private fun parseDayAndWeek(fullDate: String, dateDisplay: String, timestamp: Long): Pair<String, String> {
+    if (fullDate.isNotBlank()) {
+        try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(fullDate)
+            if (date != null) {
+                val dayNum = SimpleDateFormat("d", Locale.getDefault()).format(date)
+                val dayName = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+                return Pair(dayNum, dayName)
+            }
+        } catch (e: Exception) {
+            // fallback
+        }
+    }
+    if (dateDisplay.isNotBlank()) {
+        val parts = dateDisplay.trim().split(" ")
+        if (parts.isNotEmpty()) {
+            val dayNum = parts[0]
+            val dayName = if (parts.size > 1) parts[1] else ""
+            return Pair(dayNum, dayName)
+        }
+    }
+    val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val dayNum = SimpleDateFormat("d", Locale.getDefault()).format(cal.time)
+    val dayName = SimpleDateFormat("EEE", Locale.getDefault()).format(cal.time)
+    return Pair(dayNum, dayName)
+}

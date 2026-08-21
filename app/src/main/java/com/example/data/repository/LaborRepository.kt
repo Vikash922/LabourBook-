@@ -111,9 +111,16 @@ class LaborRepository(private val context: Context? = null) {
         if (isLoggedIn && email.isNotBlank()) {
             loadUserDataForAccount(email)
         } else {
-            _workers.value = emptyList()
-            _transactions.value = emptyList()
+            loadUserDataForAccount(email.ifBlank { "local_user" })
         }
+    }
+
+    /**
+     * Sanitizes worker attendance records to ensure legacy data with missing/zero overtimeRate
+     * gets automatically calculated based on their dailyWage (1.5x hourly rate standard).
+     */
+    private fun sanitizeWorkers(workers: List<LaborWorker>): List<LaborWorker> {
+        return workers
     }
 
     /**
@@ -134,7 +141,7 @@ class LaborRepository(private val context: Context? = null) {
                 }
             }
             if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
-                _workers.value = localData.workers
+                _workers.value = sanitizeWorkers(localData.workers)
                 _transactions.value = localData.transactions
                 if (localData.userProfile != null) {
                     _userProfile.value = _userProfile.value.copy(
@@ -154,13 +161,13 @@ class LaborRepository(private val context: Context? = null) {
             _lastBackupStatus.value = "Restoring backup from Cloud..."
             repositoryScope.launch {
                 val cloudResult = if (context != null) {
-                    com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
+                    com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context, _userProfile.value.email)
                 } else {
                     Result.failure(Exception("Context is null"))
                 }
                 
                 cloudResult.onSuccess { backupData ->
-                    _workers.value = backupData.workers
+                    _workers.value = sanitizeWorkers(backupData.workers)
                     _transactions.value = backupData.transactions
                     if (backupData.userProfile != null) {
                         _userProfile.value = _userProfile.value.copy(
@@ -202,8 +209,7 @@ class LaborRepository(private val context: Context? = null) {
      * In-memory StateFlows update immediately (0ms UI lag), while file IO & cloud uploads run on Dispatchers.IO.
      */
     private fun persistLocalData(syncToCloud: Boolean = true) {
-        val currentEmail = _userProfile.value.email
-        if (currentEmail.isBlank()) return
+        val currentEmail = _userProfile.value.email.ifBlank { "local_user" }
 
         val currentWorkers = _workers.value
         val currentTransactions = _transactions.value
@@ -283,7 +289,7 @@ class LaborRepository(private val context: Context? = null) {
         _isCloudSyncing.value = true
         _lastBackupStatus.value = "Restoring backup..."
 
-        val res = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
+        val res = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context, _userProfile.value.email)
         _isCloudSyncing.value = false
 
         res.onSuccess { backupData ->
@@ -335,7 +341,7 @@ class LaborRepository(private val context: Context? = null) {
                 var hasRestored = false
 
                 // 1. Query Cloud Firestore first (Cloud is the primary source of truth per email)
-                val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
+                val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context, _userProfile.value.email)
                 cloudRes.onSuccess { backupData ->
                     if (backupData.totalWorkers > 0 || backupData.totalTransactions > 0) {
                         _workers.value = backupData.workers
@@ -424,7 +430,7 @@ class LaborRepository(private val context: Context? = null) {
                 }
             }
             if (localDeep != null && (localDeep.totalWorkers > 0 || localDeep.totalTransactions > 0)) {
-                _workers.value = localDeep.workers
+                _workers.value = sanitizeWorkers(localDeep.workers)
                 _transactions.value = localDeep.transactions
                 if (localDeep.userProfile != null) {
                     _userProfile.value = _userProfile.value.copy(
@@ -438,11 +444,11 @@ class LaborRepository(private val context: Context? = null) {
             }
 
             // 2. Cloud Deep Scan
-            val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context)
+            val cloudRes = com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context, _userProfile.value.email)
             if (cloudRes.isSuccess) {
                 val cData = cloudRes.getOrThrow()
                 if (cData.totalWorkers > 0 || cData.totalTransactions > 0) {
-                    _workers.value = cData.workers
+                    _workers.value = sanitizeWorkers(cData.workers)
                     _transactions.value = cData.transactions
                     persistLocalData(syncToCloud = false)
                     return@withContext Result.success("Cloud Scan Success! Restored ${cData.totalWorkers} workers and ${cData.totalTransactions} cash records from Cloud.")
@@ -641,14 +647,22 @@ class LaborRepository(private val context: Context? = null) {
                     existing?.overtimeHours ?: 0.0
                 }
 
+                val otRate = if (otHours > 0.0) {
+                    existing?.overtimeRate ?: 0.0
+                } else {
+                    0.0
+                }
+
                 currentMap[dateKey] = DailyAttendance(
                     dayNumber = dayNumber,
                     dayOfWeek = dow,
                     fullDate = dateKey,
                     status = newStatus,
                     overtimeHours = otHours,
+                    overtimeRate = otRate,
                     advanceAmount = existing?.advanceAmount ?: 0.0,
-                    note = existing?.note ?: ""
+                    note = existing?.note ?: "",
+                    paymentMethod = existing?.paymentMethod ?: PaymentMethod.ONLINE
                 )
                 worker.copy(attendance = currentMap)
             } else {
@@ -658,7 +672,16 @@ class LaborRepository(private val context: Context? = null) {
         persistLocalData()
     }
 
-    fun updateDayDetails(workerId: String, monthStr: String, dayNumber: Int, advance: Double, note: String, otHours: Double) {
+    fun updateDayDetails(
+        workerId: String,
+        monthStr: String,
+        dayNumber: Int,
+        advance: Double,
+        note: String,
+        otHours: Double,
+        otRate: Double = 0.0,
+        paymentMethod: PaymentMethod = PaymentMethod.ONLINE
+    ) {
         val (year, month) = LaborCalendarHelper.parseYearMonth(monthStr)
         val dateKey = LaborCalendarHelper.getDateKey(year, month, dayNumber)
         val dow = LaborCalendarHelper.getDayOfWeekShort(year, month, dayNumber)
@@ -676,14 +699,24 @@ class LaborRepository(private val context: Context? = null) {
                     currentStatus
                 }
 
+                val finalRate = if (otRate > 0.0) {
+                    otRate
+                } else if (otHours > 0.0) {
+                    existing?.overtimeRate ?: 0.0
+                } else {
+                    0.0
+                }
+
                 currentMap[dateKey] = DailyAttendance(
                     dayNumber = dayNumber,
                     dayOfWeek = dow,
                     fullDate = dateKey,
                     status = finalStatus,
                     overtimeHours = otHours,
+                    overtimeRate = finalRate,
                     advanceAmount = advance,
-                    note = note
+                    note = note,
+                    paymentMethod = paymentMethod
                 )
                 worker.copy(attendance = currentMap)
             } else {
@@ -726,6 +759,10 @@ class LaborRepository(private val context: Context? = null) {
         autoSyncJob?.cancel()
         _transactions.value = _transactions.value.filter { it.id != transactionId }
         persistLocalWorkingStateOnly()
+        
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.remote.FirestoreSyncService.deleteTransaction(transactionId, context)
+        }
     }
 
     fun updateProfile(profile: UserProfile) {

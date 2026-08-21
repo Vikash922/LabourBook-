@@ -57,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,13 +93,13 @@ fun AddLaborScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val isExpanded by viewModel.isAddStaffExpanded.collectAsState()
-    val laborName by viewModel.newLaborName.collectAsState()
-    val laborPhone by viewModel.newLaborPhone.collectAsState()
-    val laborWage by viewModel.newLaborWage.collectAsState()
-    val searchQuery by viewModel.contactsSearchQuery.collectAsState()
-    val contacts by viewModel.filteredContacts.collectAsState()
-    val userProfile by viewModel.userProfile.collectAsState()
+    val isExpanded by viewModel.isAddStaffExpanded.collectAsStateWithLifecycle()
+    val laborName by viewModel.newLaborName.collectAsStateWithLifecycle()
+    val laborPhone by viewModel.newLaborPhone.collectAsStateWithLifecycle()
+    val laborWage by viewModel.newLaborWage.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.contactsSearchQuery.collectAsStateWithLifecycle()
+    val contacts by viewModel.filteredContacts.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val lang = userProfile.language
 
     val isFormValid = laborName.isNotBlank() && laborPhone.isNotBlank()

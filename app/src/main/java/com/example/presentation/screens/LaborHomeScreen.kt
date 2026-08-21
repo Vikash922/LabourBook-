@@ -40,10 +40,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -71,13 +72,13 @@ fun LaborHomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val workers by viewModel.filteredWorkers.collectAsState()
-    val syncMessage by viewModel.syncMessage.collectAsState()
-    val userProfile by viewModel.userProfile.collectAsState()
-    val lastBackupStatus by viewModel.lastBackupStatus.collectAsState()
-    val isCloudSyncing by viewModel.isCloudSyncing.collectAsState()
-    val lastDeletedWorker by viewModel.lastDeletedWorker.collectAsState()
-    val workerSearchQuery by viewModel.workerSearchQuery.collectAsState()
+    val workers by viewModel.filteredWorkers.collectAsStateWithLifecycle()
+    val syncMessage by viewModel.syncMessage.collectAsStateWithLifecycle()
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val lastBackupStatus by viewModel.lastBackupStatus.collectAsStateWithLifecycle()
+    val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
+    val lastDeletedWorker by viewModel.lastDeletedWorker.collectAsStateWithLifecycle()
+    val workerSearchQuery by viewModel.workerSearchQuery.collectAsStateWithLifecycle()
     val lang = userProfile.language
 
     Scaffold(
@@ -131,17 +132,18 @@ fun LaborHomeScreen(
                 androidx.compose.foundation.layout.Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .background(Color.White, RoundedCornerShape(24.dp))
-                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(24.dp))
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .shadow(elevation = 3.dp, shape = RoundedCornerShape(12.dp))
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = androidx.compose.material.icons.Icons.Default.Search,
                             contentDescription = "Search",
                             tint = Color.Gray,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         androidx.compose.foundation.text.BasicTextField(
@@ -167,56 +169,19 @@ fun LaborHomeScreen(
                     }
                 }
 
-                // Cloud Status Bar
-                Surface(
+                // My Labour Title Label
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "My Labour",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color.White,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(
-                                imageVector = if (lastBackupStatus.contains("failed", ignoreCase = true)) Icons.Default.CloudOff else Icons.Default.CloudDone,
-                                contentDescription = null,
-                                tint = if (lastBackupStatus.contains("failed", ignoreCase = true)) Color(0xFFDC2626) else Color(0xFF16A34A),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = lastBackupStatus,
-                                fontSize = 11.sp,
-                                color = Color(0xFF374151),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable {
-                                viewModel.backupToCloudNow { _, msg ->
-                                    viewModel.showMessage(msg)
-                                }
-                            }
-                        ) {
-                            Text(
-                                text = "Sync",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = LaborBlue
-                            )
-                        }
-                    }
-                }
+                        .padding(horizontal = 14.dp, vertical = 2.dp)
+                )
+
+
 
                 // Accidentally Deleted Worker Undo Recovery Banner
                 val showUndoBanner = lastDeletedWorker != null && workers.none { it.id == lastDeletedWorker?.id }
@@ -282,16 +247,17 @@ fun LaborHomeScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        shape = RoundedCornerShape(16.dp),
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .shadow(elevation = 3.dp, shape = RoundedCornerShape(10.dp)),
+                        shape = RoundedCornerShape(10.dp),
                         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         com.example.presentation.components.LaborWorkerCard(
                             worker = worker,
                             onCardClick = { viewModel.navigateTo(Screen.LaborDetail(worker.id)) },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(10.dp),
                             showDivider = false
                         )
                     }

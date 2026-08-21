@@ -107,13 +107,13 @@ object CompactCsvBackupService {
 
         // SECTION 3: DAILY ATTENDANCE & LABOUR WAGE DETAILS
         sb.append("[SECTION_ATTENDANCE_LOGS]\n")
-        sb.append("WorkerId,WorkerName,FullDate,DayNumber,DayOfWeek,Status,OvertimeHours,AdvanceAmount,Note\n")
+        sb.append("WorkerId,WorkerName,FullDate,DayNumber,DayOfWeek,Status,OvertimeHours,AdvanceAmount,Note,OvertimeRate,PaymentMethod\n")
         for (w in workers) {
             for ((dateKey, att) in w.attendance) {
                 val fullDate = if (att.fullDate.isNotBlank()) att.fullDate else dateKey
                 val statusStr = att.status.name
                 val noteClean = att.note.replace("\n", " ").replace("\r", " ")
-                sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(fullDate)},${att.dayNumber},${escapeCsv(att.dayOfWeek)},${escapeCsv(statusStr)},${att.overtimeHours},${att.advanceAmount},${escapeCsv(noteClean)}\n")
+                sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(fullDate)},${att.dayNumber},${escapeCsv(att.dayOfWeek)},${escapeCsv(statusStr)},${att.overtimeHours},${att.advanceAmount},${escapeCsv(noteClean)},${att.overtimeRate},${escapeCsv(att.paymentMethod.name)}\n")
             }
         }
         sb.append("\n")
@@ -226,6 +226,13 @@ object CompactCsvBackupService {
                             val otHours = tokens.getOrElse(6) { "0.0" }.toDoubleOrNull() ?: 0.0
                             val advance = tokens.getOrElse(7) { "0.0" }.toDoubleOrNull() ?: 0.0
                             val note = tokens.getOrElse(8) { "" }
+                            val otRate = tokens.getOrElse(9) { "0.0" }.toDoubleOrNull() ?: 0.0
+                            val payMethodStr = tokens.getOrElse(10) { "ONLINE" }
+                            val payMethod = try {
+                                PaymentMethod.valueOf(payMethodStr)
+                            } catch (e: Exception) {
+                                PaymentMethod.ONLINE
+                            }
 
                             val dateKey = if (fullDate.isNotBlank()) fullDate else String.format(Locale.US, "2026-08-%02d", dayNumber)
                             val att = DailyAttendance(
@@ -234,8 +241,10 @@ object CompactCsvBackupService {
                                 fullDate = dateKey,
                                 status = status,
                                 overtimeHours = otHours,
+                                overtimeRate = otRate,
                                 advanceAmount = advance,
-                                note = note
+                                note = note,
+                                paymentMethod = payMethod
                             )
 
                             val mapForWorker = attendanceRecords.getOrPut(wId) { mutableMapOf() }

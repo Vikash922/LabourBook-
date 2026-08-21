@@ -31,16 +31,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,8 +62,21 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import java.util.Locale
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.presentation.components.MonthYearSelectionBottomSheet
 import com.example.presentation.components.AdvanceAmountBottomSheet
+import com.example.presentation.components.DayAdvanceDetailBottomSheet
+import com.example.presentation.components.AdvanceConfirmationScreen
+import com.example.presentation.components.AdvanceConfirmationType
 import com.example.presentation.components.EditWorkerProfileBottomSheet
 import com.example.domain.model.PaymentMethod
 import androidx.compose.ui.draw.shadow
@@ -86,8 +103,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.dropUnlessResumed // or any unused lifecycle compose imports if needed, but collectAsStateWithLifecycle is the main one
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -128,9 +147,9 @@ fun LaborDetailScreen(
     viewModel: LaborViewModel,
     modifier: Modifier = Modifier
 ) {
-    val workers by viewModel.workers.collectAsState()
-    val selectedMonth by viewModel.selectedMonth.collectAsState()
-    val worker = workers.firstOrNull { it.id == workerId }
+    val workers by viewModel.workers.collectAsStateWithLifecycle()
+    val selectedMonth by viewModel.selectedMonth.collectAsStateWithLifecycle()
+    val worker = remember(workers, workerId) { workers.firstOrNull { it.id == workerId } }
 
     if (worker == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -143,28 +162,31 @@ fun LaborDetailScreen(
     val monthDaysInfo = remember(currentYear, currentMonthNum) { LaborCalendarHelper.getMonthDaysInfo(currentYear, currentMonthNum) }
     val context = LocalContext.current
 
-    val monthStats = remember(worker, selectedMonth) { worker.calculateMonthStats(selectedMonth) }
+    var refreshTrigger by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val coroutineScope = rememberCoroutineScope()
+    val refreshAnim = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    val monthStats = remember(worker, selectedMonth, refreshTrigger) { worker.calculateMonthStats(selectedMonth) }
     val monthPresent = monthStats.presentCount
     val monthAbsent = monthStats.absentCount
     val monthOvertime = monthStats.overtimeHours
     val monthAdvance = monthStats.totalAdvance
     val monthEstimatedEarnings = monthStats.estimatedEarnings
+    val monthHalfDay = monthStats.halfDayCount
+    val monthDouble = monthStats.doubleCount
+    val monthPresentHalf = monthStats.presentHalfCount
+    val monthBalance = monthStats.balance
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showEditWorkerDialog by remember { mutableStateOf(false) }
-    var selectedDayForAdvanceDialog by remember { mutableStateOf<Int?>(null) }
+    var selectedDayForAdvanceDetailDialog by remember { mutableStateOf<Int?>(null) }
+    var selectedDayForAdvanceEditDialog by remember { mutableStateOf<Int?>(null) }
+    var advanceConfirmationState by remember { mutableStateOf<AdvanceConfirmationType?>(null) }
     var selectedDayForOvertimeDialog by remember { mutableStateOf<Int?>(null) }
     var selectedDayForAttendanceSheet by remember { mutableStateOf<Pair<Int, com.example.domain.model.AttendanceStatus?>?>(null) }
     var showCalendarDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var isOverviewExpanded by remember { mutableStateOf(false) }
-    var isRefreshingOverview by remember { mutableStateOf(false) }
-    val rotationAngle by animateFloatAsState(
-        targetValue = if (isRefreshingOverview) 360f else 0f,
-        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
-        finishedListener = { isRefreshingOverview = false },
-        label = "refresh_rotation"
-    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -259,40 +281,26 @@ fun LaborDetailScreen(
             }
         },
         floatingActionButton = {
-            // Black Pill "Share to Akash" Button as in screenshot
+            // WhatsApp Floating Action Button
             Surface(
                 onClick = { viewModel.shareWorkerReport(worker) },
-                color = Color.Black,
-                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF25D366),
+                shape = CircleShape,
                 shadowElevation = 6.dp,
                 modifier = Modifier
-                    .padding(bottom = 8.dp, end = 4.dp)
+                    .size(56.dp)
+                    .padding(bottom = 4.dp, end = 4.dp)
                     .testTag("share_worker_fab")
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Chat speech bubble icon
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .background(Color(0xFF25D366), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Call,
-                            contentDescription = "WhatsApp",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Share to ${worker.name.split(" ").first()}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_whatsapp),
+                        contentDescription = "Share on WhatsApp",
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
                     )
                 }
             }
@@ -373,109 +381,260 @@ fun LaborDetailScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(14.dp),
                     color = Color.White,
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     shadowElevation = 2.dp
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 8.dp, vertical = 12.dp)
                     ) {
-                        // 1. Total Present (Green)
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Top Row: Total Present | Total Absent | Over time | Total Advance | Chevron
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = if (monthPresent % 1.0 == 0.0) "${monthPresent.toInt()}.0" else "$monthPresent",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF10B981)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Total Present",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
+                            // 1. Total Present (Green)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = String.format(Locale.ENGLISH, "%.1f", monthPresent),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF10B981)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Total Present",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            // 2. Total Absent (Red)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = String.format(Locale.ENGLISH, "%.1f", monthAbsent),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEF4444)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Total Absent",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            // 3. Over time (Dark)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "${monthOvertime.toInt()}h",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Over time",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            // 4. Total Advance (Dark)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "₹${String.format(Locale.ENGLISH, "%.1f", monthAdvance)}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Total Advance",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            // 5. Chevron Arrow (Up when expanded, Down when collapsed)
+                            IconButton(
+                                onClick = { isOverviewExpanded = !isOverviewExpanded },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isOverviewExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = if (isOverviewExpanded) "Collapse Overview" else "Expand Overview",
+                                    tint = Color(0xFF1D61D2),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
 
-                        // 2. Total Absent (Red)
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Bottom Row (Expanded): Half day | Total P+P | Total P+1/2 | Balance (with Refresh)
+                        AnimatedVisibility(
+                            visible = isOverviewExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically()
                         ) {
-                            Text(
-                                text = if (monthAbsent % 1.0 == 0.0) "${monthAbsent.toInt()}.0" else "$monthAbsent",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF4444)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Total Absent",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Spacer(modifier = Modifier.height(14.dp))
 
-                        // 3. Over time (Dark)
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "${monthOvertime.toInt()}h",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Over time",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // 1. Half day
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = String.format(Locale.ENGLISH, "%.1f", monthHalfDay),
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Half day",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1
+                                        )
+                                    }
 
-                        // 4. Total Advance (Red when paid, otherwise dark)
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "₹${if (monthAdvance % 1.0 == 0.0) "${monthAdvance.toInt()}.0" else "$monthAdvance"}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (monthAdvance > 0) Color(0xFFDC2626) else Color(0xFF0F172A)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Total Advance",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF64748B)
-                            )
-                        }
+                                    // 2. Total P+P (Double)
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = String.format(Locale.ENGLISH, "%.1f", monthDouble),
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Total P+P",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1
+                                        )
+                                    }
 
-                        // 5. Chevron Arrow (Right edge)
-                        IconButton(
-                            onClick = { isOverviewExpanded = !isOverviewExpanded },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Expand",
-                                tint = Color(0xFF1D61D2),
-                                modifier = Modifier.size(24.dp).rotate(if (isOverviewExpanded) 180f else 0f)
-                            )
+                                    // 3. Total P+1/2 (Present + Half)
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = String.format(Locale.ENGLISH, "%.1f", monthPresentHalf),
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Total P+1/2",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    // 4. Balance (supports 5+ digits easily with adaptive font size)
+                                    val balanceText = if (kotlin.math.abs(monthBalance) >= 100000) {
+                                        "₹${String.format(Locale.ENGLISH, "%.0f", monthBalance)}"
+                                    } else {
+                                        "₹${String.format(Locale.ENGLISH, "%.1f", monthBalance)}"
+                                    }
+                                    val balanceFontSize = when {
+                                        balanceText.length > 12 -> 10.sp
+                                        balanceText.length > 9 -> 12.sp
+                                        balanceText.length > 7 -> 14.sp
+                                        balanceText.length > 5 -> 16.sp
+                                        else -> 17.sp
+                                    }
+
+                                    Column(
+                                        modifier = Modifier.weight(1.35f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = balanceText,
+                                            fontSize = balanceFontSize,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1D61D2),
+                                            maxLines = 1
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Balance",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    // 5. Reload / Refresh Icon Button on the side with comfortable touch target & rotation
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                coroutineScope.launch {
+                                                    refreshTrigger++
+                                                    refreshAnim.animateTo(
+                                                        targetValue = refreshAnim.value + 360f,
+                                                        animationSpec = tween(
+                                                            durationMillis = 650,
+                                                            easing = FastOutSlowInEasing
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Refresh Overview",
+                                            tint = Color(0xFF0F172A),
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .rotate(refreshAnim.value)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -609,7 +768,13 @@ fun LaborDetailScreen(
                         selectedDayForOvertimeDialog = day
                     },
                     onAdvanceClicked = { day ->
-                        selectedDayForAdvanceDialog = day
+                        val dateKey = LaborCalendarHelper.getDateKey(currentYear, currentMonthNum, day)
+                        val dayRecord = worker.attendance[dateKey]
+                        if ((dayRecord?.advanceAmount ?: 0.0) > 0.0) {
+                            selectedDayForAdvanceDetailDialog = day
+                        } else {
+                            selectedDayForAdvanceEditDialog = day
+                        }
                     },
                     onOpenAttendanceSheet = { day, initialStatus ->
                         selectedDayForAttendanceSheet = Pair(day, initialStatus)
@@ -623,8 +788,44 @@ fun LaborDetailScreen(
         }
     }
 
-    // Advance Amount Bottom Sheet for specific day (Matching reference screenshot exactly)
-    selectedDayForAdvanceDialog?.let { day ->
+    // Day Advance Detail Bottom Sheet (When clicking on an existing advance amount)
+    selectedDayForAdvanceDetailDialog?.let { day ->
+        val dateKey = LaborCalendarHelper.getDateKey(currentYear, currentMonthNum, day)
+        val dayRecord = worker.attendance[dateKey]
+
+        DayAdvanceDetailBottomSheet(
+            day = day,
+            selectedMonth = selectedMonth,
+            status = dayRecord?.status ?: AttendanceStatus.UNMARKED,
+            advanceAmount = dayRecord?.advanceAmount ?: 0.0,
+            paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE,
+            note = dayRecord?.note ?: "",
+            onEditClicked = {
+                selectedDayForAdvanceDetailDialog = null
+                selectedDayForAdvanceEditDialog = day
+            },
+            onDeleteClicked = {
+                viewModel.updateDayDetails(
+                    workerId = worker.id,
+                    dayNumber = day,
+                    advance = 0.0,
+                    note = "",
+                    otHours = dayRecord?.overtimeHours ?: 0.0,
+                    otRate = dayRecord?.overtimeRate ?: 0.0,
+                    monthStr = selectedMonth,
+                    paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE
+                )
+                selectedDayForAdvanceDetailDialog = null
+                advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
+            },
+            onDismiss = {
+                selectedDayForAdvanceDetailDialog = null
+            }
+        )
+    }
+
+    // Advance Amount Edit/Add Bottom Sheet
+    selectedDayForAdvanceEditDialog?.let { day ->
         val dateKey = LaborCalendarHelper.getDateKey(currentYear, currentMonthNum, day)
         val dayRecord = worker.attendance[dateKey]
 
@@ -634,8 +835,22 @@ fun LaborDetailScreen(
             selectedMonth = selectedMonth,
             initialAdvance = dayRecord?.advanceAmount ?: 0.0,
             initialNote = dayRecord?.note ?: "",
-            initialPaymentMethod = PaymentMethod.CASH,
-            onDismiss = { selectedDayForAdvanceDialog = null },
+            initialPaymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.CASH,
+            onDismiss = { selectedDayForAdvanceEditDialog = null },
+            onDelete = {
+                viewModel.updateDayDetails(
+                    workerId = worker.id,
+                    dayNumber = day,
+                    advance = 0.0,
+                    note = "",
+                    otHours = dayRecord?.overtimeHours ?: 0.0,
+                    otRate = dayRecord?.overtimeRate ?: 0.0,
+                    monthStr = selectedMonth,
+                    paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.CASH
+                )
+                selectedDayForAdvanceEditDialog = null
+                advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
+            },
             onConfirm = { adv, note, paymentMethod ->
                 viewModel.updateDayDetails(
                     workerId = worker.id,
@@ -643,9 +858,26 @@ fun LaborDetailScreen(
                     advance = adv,
                     note = note,
                     otHours = dayRecord?.overtimeHours ?: 0.0,
-                    monthStr = selectedMonth
+                    otRate = dayRecord?.overtimeRate ?: 0.0,
+                    monthStr = selectedMonth,
+                    paymentMethod = paymentMethod
                 )
-                selectedDayForAdvanceDialog = null
+                selectedDayForAdvanceEditDialog = null
+                if (adv > 0.0) {
+                    advanceConfirmationState = AdvanceConfirmationType.Added(amount = adv, workerName = worker.name)
+                } else {
+                    advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
+                }
+            }
+        )
+    }
+
+    // Advance Confirmation / Success Screen (Matching reference screenshot exactly)
+    advanceConfirmationState?.let { confirmation ->
+        AdvanceConfirmationScreen(
+            confirmationType = confirmation,
+            onDismiss = {
+                advanceConfirmationState = null
             }
         )
     }
@@ -663,16 +895,23 @@ fun LaborDetailScreen(
         }
 
         val initialTotalOt = dayRecord?.overtimeHours ?: 0.0
-        var otHours by remember { mutableIntStateOf(initialTotalOt.toInt()) }
-        var otMinutes by remember { mutableIntStateOf(((initialTotalOt - initialTotalOt.toInt()) * 60).roundToInt()) }
+        var otHours by remember(day, initialTotalOt) { mutableIntStateOf(initialTotalOt.toInt()) }
+        var otMinutes by remember(day, initialTotalOt) { mutableIntStateOf(((initialTotalOt - initialTotalOt.toInt()) * 60).roundToInt()) }
         
-        val defaultRate = (worker.dailyWage / 8.0).roundToInt().coerceAtLeast(0)
-        var hourlyRateStr by remember { mutableStateOf(if (defaultRate > 0) defaultRate.toString() else "") }
+        val initialRate = dayRecord?.overtimeRate ?: 0.0
+        var hourlyRateStr by remember(day, initialRate) { mutableStateOf(if (initialRate > 0) {
+            if (initialRate % 1.0 == 0.0) String.format(Locale.ENGLISH, "%.0f", initialRate) else initialRate.toString()
+        } else "") }
         var showHoursPickerDialog by remember { mutableStateOf(false) }
 
         val currentTotalHours = otHours + (otMinutes / 60.0)
-        val currentRate = hourlyRateStr.toDoubleOrNull() ?: defaultRate.toDouble()
-        val totalOvertimeAmount = (currentTotalHours * currentRate).roundToInt()
+        val currentRate = hourlyRateStr.toDoubleOrNull() ?: 0.0
+        val totalOvertimeAmount = currentTotalHours * currentRate
+        val formattedOtAmount = if (totalOvertimeAmount % 1.0 == 0.0) {
+            String.format(Locale.ENGLISH, "%.0f", totalOvertimeAmount)
+        } else {
+            String.format(Locale.ENGLISH, "%.2f", totalOvertimeAmount)
+        }
 
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -683,39 +922,56 @@ fun LaborDetailScreen(
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             dragHandle = null
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .background(Color.White)
+                    .pointerInput(Unit) {}
+                    .padding(top = 16.dp, bottom = 12.dp)
             ) {
-                Column(
+                // Header Row: Overtime (left) & Aug 01, 2026 + Close Icon (right)
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp)
+                        .padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Header Row: Overtime (left) & Aug 01, 2026 (right)
+                    Text(
+                        text = "Overtime",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
+
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 18.dp, end = 56.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Overtime",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827)
-                        )
                         Text(
                             text = formattedDateHeader,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827)
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                        IconButton(
+                            onClick = { selectedDayForOvertimeDialog = null },
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFFF1F5F9), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF111827),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                     // Hours Section
                     Column(
@@ -828,7 +1084,7 @@ fun LaborDetailScreen(
                             color = Color(0xFF111827)
                         )
                         Text(
-                            text = "₹$totalOvertimeAmount",
+                            text = "₹$formattedOtAmount",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF111827)
@@ -837,58 +1093,95 @@ fun LaborDetailScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Bottom Ok Button
+                    // Bottom Action Buttons: Remove Overtime (Left) & Ok (Right)
                     val isOkActive = currentTotalHours > 0 || totalOvertimeAmount > 0
-                    Button(
-                        onClick = {
-                            viewModel.updateDayDetails(
-                                workerId = worker.id,
-                                dayNumber = day,
-                                advance = dayRecord?.advanceAmount ?: 0.0,
-                                note = dayRecord?.note ?: "",
-                                otHours = currentTotalHours,
-                                monthStr = selectedMonth
-                            )
-                            selectedDayForOvertimeDialog = null
-                        },
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 18.dp)
-                            .height(46.dp),
-                        shape = RoundedCornerShape(23.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isOkActive) Color(0xFF1D61D2) else Color(0xFFE5E7EB),
-                            contentColor = if (isOkActive) Color.White else Color(0xFF9CA3AF)
-                        )
+                            .padding(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Ok",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        // Left: Remove Overtime Button
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.updateDayDetails(
+                                    workerId = worker.id,
+                                    dayNumber = day,
+                                    advance = dayRecord?.advanceAmount ?: 0.0,
+                                    note = dayRecord?.note ?: "",
+                                    otHours = 0.0,
+                                    otRate = 0.0,
+                                    monthStr = selectedMonth,
+                                    paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE
+                                )
+                                selectedDayForOvertimeDialog = null
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(23.dp),
+                            border = BorderStroke(1.2.dp, Color(0xFFFCA5A5)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color(0xFFFEF2F2),
+                                contentColor = Color(0xFFDC2626)
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Remove Overtime",
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Remove Overtime",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        // Right: Ok Button
+                        Button(
+                            onClick = {
+                                viewModel.updateDayDetails(
+                                    workerId = worker.id,
+                                    dayNumber = day,
+                                    advance = dayRecord?.advanceAmount ?: 0.0,
+                                    note = dayRecord?.note ?: "",
+                                    otHours = currentTotalHours,
+                                    otRate = currentRate,
+                                    monthStr = selectedMonth,
+                                    paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE
+                                )
+                                selectedDayForOvertimeDialog = null
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(46.dp),
+                            shape = RoundedCornerShape(23.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isOkActive) Color(0xFF1D61D2) else Color(0xFFE5E7EB),
+                                contentColor = if (isOkActive) Color.White else Color(0xFF9CA3AF)
+                            )
+                        ) {
+                            Text(
+                                text = "Ok",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
                 }
-
-                // Floating Close Button (top right, above the sheet)
-                IconButton(
-                    onClick = { selectedDayForOvertimeDialog = null },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(end = 12.dp, top = 2.dp)
-                        .size(36.dp)
-                        .shadow(3.dp, CircleShape)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF1F2937),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
         }
 
         // Hours and Minutes Picker Scroll Wheel Bottom Sheet
@@ -1034,55 +1327,69 @@ fun LaborDetailScreen(
         ModalBottomSheet(
             onDismissRequest = { selectedDayForAttendanceSheet = null },
             sheetState = sheetState,
-            containerColor = Color.Transparent,
+            containerColor = Color.White,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             dragHandle = null
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(Color.White)
+                    .pointerInput(Unit) {}
+                    .padding(top = 16.dp, bottom = 12.dp)
             ) {
-                Column(
+                // Header: Worker Name & Date + Close Icon
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp)
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                        .background(Color.White)
-                        .padding(top = 16.dp)
+                        .padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Header: Worker Name & Date
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = worker.name,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
-                            )
-                            Spacer(modifier = Modifier.height(1.dp))
-                            Text(
-                                text = "Mark Attendance",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
+                    Column {
+                        Text(
+                            text = worker.name,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF111827)
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        Text(
+                            text = "Mark Attendance",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Text(
                             text = dateDisplayString,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827),
-                            modifier = Modifier.padding(end = 36.dp)
+                            color = Color(0xFF111827)
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        IconButton(
+                            onClick = { selectedDayForAttendanceSheet = null },
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFFF1F5F9), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color(0xFF1F2937),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                     // Attendance Status Pills (Row 1 & Row 2 exactly matching screenshot)
                     Column(
@@ -1178,45 +1485,65 @@ fun LaborDetailScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // MEANING Section (Exact match from screenshot with light warm off-white background)
-                    Column(
+                    // MEANING Section (Clean elevated modern card with soft background)
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFFAF9F6))
-                            .padding(horizontal = 18.dp, vertical = 12.dp)
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        shadowElevation = 0.5.dp
                     ) {
-                        Text(
-                            text = "MEANING:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111827),
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
                         ) {
-                            MeaningItem(boldKey = "A", desc = " - Absent")
-                            MeaningItem(boldKey = "½", desc = " - Half day")
-                            MeaningItem(boldKey = "P", desc = " - Present")
-                            MeaningItem(boldKey = "OT", desc = " - Overtime")
-                        }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .background(Color(0xFF3B82F6), CircleShape)
+                                )
+                                Text(
+                                    text = "MEANING & CODES",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF475569),
+                                    letterSpacing = 0.6.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(10.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MeaningItem(boldKey = "A", desc = "Absent", badgeBg = Color(0xFFFEE2E2), badgeTextColor = Color(0xFFDC2626))
+                                MeaningItem(boldKey = "½", desc = "Half day", badgeBg = Color(0xFFFEF3C7), badgeTextColor = Color(0xFFD97706))
+                                MeaningItem(boldKey = "P", desc = "Present", badgeBg = Color(0xFFDCFCE7), badgeTextColor = Color(0xFF16A34A))
+                                MeaningItem(boldKey = "OT", desc = "Overtime", badgeBg = Color(0xFFF3E8FF), badgeTextColor = Color(0xFF7E3B7D))
+                            }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            MeaningItem(boldKey = "P + ½", desc = " - 1.5 day")
-                            Spacer(modifier = Modifier.width(22.dp))
-                            MeaningItem(boldKey = "P+P", desc = " - Double")
-                            Spacer(modifier = Modifier.width(22.dp))
-                            MeaningItem(boldKey = "PA", desc = " - Paid Leave")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                MeaningItem(boldKey = "P + ½", desc = "1.5 day", badgeBg = Color(0xFFE0F2FE), badgeTextColor = Color(0xFF0284C7))
+                                Spacer(modifier = Modifier.width(16.dp))
+                                MeaningItem(boldKey = "P+P", desc = "Double", badgeBg = Color(0xFFDBEAFE), badgeTextColor = Color(0xFF2563EB))
+                                Spacer(modifier = Modifier.width(16.dp))
+                                MeaningItem(boldKey = "PA", desc = "Paid Leave", badgeBg = Color(0xFFEDE9FE), badgeTextColor = Color(0xFF7C3AED))
+                            }
                         }
                     }
 
@@ -1279,25 +1606,6 @@ fun LaborDetailScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-
-                // Floating Close Button (top right, above the sheet background)
-                IconButton(
-                    onClick = { selectedDayForAttendanceSheet = null },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 0.dp, end = 12.dp)
-                        .size(36.dp)
-                        .shadow(3.dp, CircleShape)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color(0xFF1F2937),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
         }
     }
 }
@@ -1387,7 +1695,7 @@ fun LaborAttendanceDayRow(
                 ) {
                     when (status) {
                         AttendanceStatus.ABSENT -> {
-                            // Solid Red A
+                            // Only Solid Red A (P is hidden)
                             AttendancePillButton(
                                 label = "A",
                                 isSelected = true,
@@ -1396,7 +1704,7 @@ fun LaborAttendanceDayRow(
                             )
                         }
                         AttendanceStatus.PRESENT -> {
-                            // Solid Green P
+                            // Only Solid Green P (A is hidden)
                             AttendancePillButton(
                                 label = "P",
                                 isSelected = true,
@@ -1405,7 +1713,7 @@ fun LaborAttendanceDayRow(
                             )
                         }
                         AttendanceStatus.HALF_DAY -> {
-                            // Solid Green 1/2
+                            // Only Solid Green 1/2
                             AttendancePillButton(
                                 label = "1/2",
                                 isSelected = true,
@@ -1414,16 +1722,16 @@ fun LaborAttendanceDayRow(
                             )
                         }
                         AttendanceStatus.PRESENT_HALF -> {
-                            // Solid Green P + 1/2
+                            // Solid Green P + 1/2 (tap again opens Mark Attendance sheet)
                             AttendancePillButton(
-                                label = "P + 1/2",
+                                label = "P + ½",
                                 isSelected = true,
                                 activeColor = Color(0xFF2E9B66),
                                 onClick = { onOpenAttendanceSheet(dayInfo.day, AttendanceStatus.PRESENT_HALF) }
                             )
                         }
                         AttendanceStatus.DOUBLE -> {
-                            // Solid Green P + P
+                            // Solid Green P + P (tap again opens Mark Attendance sheet)
                             AttendancePillButton(
                                 label = "P + P",
                                 isSelected = true,
@@ -1432,7 +1740,7 @@ fun LaborAttendanceDayRow(
                             )
                         }
                         AttendanceStatus.PAID_LEAVE -> {
-                            // Solid Purple PA
+                            // Solid Purple PA (tap again opens Mark Attendance sheet)
                             AttendancePillButton(
                                 label = "PA",
                                 isSelected = true,
@@ -1487,16 +1795,19 @@ fun LaborAttendanceDayRow(
                     }
                 }
 
-                // 3 dots More Menu
-                IconButton(
-                    onClick = { onOpenAttendanceSheet(dayInfo.day, status) },
-                    modifier = Modifier.size(28.dp)
+                // 3 dots More Menu (Mark Attendance Sheet)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable { onOpenAttendanceSheet(dayInfo.day, status) },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = "Mark Attendance",
+                        tint = Color(0xFF475569),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -1577,20 +1888,33 @@ fun AttendanceSheetPill(
 @Composable
 fun MeaningItem(
     boldKey: String,
-    desc: String
+    desc: String,
+    badgeBg: Color = Color(0xFFE2E8F0),
+    badgeTextColor: Color = Color(0xFF1E293B)
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = boldKey,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 12.sp,
-            color = Color(0xFF111827)
-        )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = badgeBg,
+            border = BorderStroke(0.5.dp, badgeTextColor.copy(alpha = 0.25f))
+        ) {
+            Text(
+                text = boldKey,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                color = badgeTextColor,
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = desc,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            color = Color(0xFF4B5563)
+            fontWeight = FontWeight.Medium,
+            fontSize = 11.sp,
+            color = Color(0xFF334155)
         )
     }
 }

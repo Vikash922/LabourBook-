@@ -402,7 +402,7 @@ fun LoginScreen(
                                     isSigningIn = false
                                     if (!success) {
                                         isEmailError = true
-                                        emailErrorMessage = "Invalid user email or password. Please create an account."
+                                        emailErrorMessage = msg.ifBlank { "Invalid email or password. Please verify and try again." }
                                     }
                                 }
                             } else {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
@@ -35,12 +36,13 @@ fun LaborbookHomeTopBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = Color.White,
+        color = LaborBlue,
         shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -48,7 +50,7 @@ fun LaborbookHomeTopBar(
             // App Title Logo
             Text(
                 text = "Laborbook",
-                color = LaborBlue,
+                color = Color.White,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.testTag("app_logo_title")
@@ -57,8 +59,8 @@ fun LaborbookHomeTopBar(
             // 'Share' Pill
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFF25D366)),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, Color.White),
                 modifier = Modifier
                     .clickable { onShareClick() }
                     .testTag("top_share_button")
@@ -68,15 +70,15 @@ fun LaborbookHomeTopBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Share, // Approximation for WhatsApp icon
+                        imageVector = Icons.Default.Share,
                         contentDescription = "Share",
-                        tint = Color(0xFF25D366), // WhatsApp green
+                        tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Share",
-                        color = LaborBlue,
+                        color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )

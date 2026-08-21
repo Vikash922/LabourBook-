@@ -167,8 +167,9 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val filteredTransactions = combine(transactions, transactionSearchQuery) { list, query ->
-        if (query.isBlank()) list
-        else list.filter { it.notes.contains(query, ignoreCase = true) || it.dateDisplay.contains(query, ignoreCase = true) }
+        val validList = list.filter { it.amount > 0.0 }
+        if (query.isBlank()) validList
+        else validList.filter { it.notes.contains(query, ignoreCase = true) || it.dateDisplay.contains(query, ignoreCase = true) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun navigateTo(screen: Screen) {
@@ -248,8 +249,17 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         repository.setAttendanceStatus(workerId, monthStr, dayNumber, status)
     }
 
-    fun updateDayDetails(workerId: String, dayNumber: Int, advance: Double, note: String, otHours: Double, monthStr: String = selectedMonth.value) {
-        repository.updateDayDetails(workerId, monthStr, dayNumber, advance, note, otHours)
+    fun updateDayDetails(
+        workerId: String,
+        dayNumber: Int,
+        advance: Double,
+        note: String,
+        otHours: Double,
+        otRate: Double = 0.0,
+        monthStr: String = selectedMonth.value,
+        paymentMethod: PaymentMethod = PaymentMethod.ONLINE
+    ) {
+        repository.updateDayDetails(workerId, monthStr, dayNumber, advance, note, otHours, otRate, paymentMethod)
     }
 
     fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double) {
@@ -309,7 +319,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
             type = type,
             amount = 0.0,
             paymentMethod = PaymentMethod.CASH,
-            notes = if (type == TransactionType.CASH_IN) "Income" else "Expense"
+            notes = ""
         )
         _transactionSheetMode.value = if (type == TransactionType.CASH_IN) TransactionSheetMode.CREATE_IN else TransactionSheetMode.CREATE_OUT
     }
@@ -328,6 +338,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         dateDisplay: String,
         fullDate: String
     ) {
+        if (amount <= 0.0) {
+            closeTransactionSheet()
+            return
+        }
         if (id.isBlank()) {
             repository.addTransaction(type, amount, paymentMethod, notes, dateDisplay, fullDate)
         } else {
@@ -618,8 +632,13 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         PdfReportGenerator.shareWorkerReportPdf(getApplication(), worker, selectedMonth.value)
     }
 
-    fun shareCashBookReport(startDate: String = "Sat, 01 Aug 26", endDate: String = "Mon, 31 Aug 26") {
-        PdfReportGenerator.shareCashBookReportPdf(getApplication(), transactions.value, startDate, endDate)
+    fun shareCashBookReport(
+        startDate: String = "Sat, 01 Aug 26", 
+        endDate: String = "Mon, 31 Aug 26",
+        customTransactions: List<CashTransaction>? = null
+    ) {
+        val listToShare = (customTransactions ?: transactions.value).filter { it.amount > 0.0 }
+        PdfReportGenerator.shareCashBookReportPdf(getApplication(), listToShare, startDate, endDate)
     }
 
     fun shareBatchRoster() {
