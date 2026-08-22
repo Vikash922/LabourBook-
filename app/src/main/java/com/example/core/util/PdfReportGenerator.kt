@@ -140,8 +140,11 @@ object PdfReportGenerator {
         canvas.drawText("Worker Name: ${worker.name}", MARGIN + 15, y + 25, textBoldPaint)
         canvas.drawText("Phone: ${worker.phoneNumber}", MARGIN + 15, y + 45, textPaint)
         
-        canvas.drawText("Daily Wage:", PAGE_WIDTH - MARGIN - 150, y + 25, textPaint)
-        canvas.drawText("Rs.${worker.dailyWage.toInt()}", PAGE_WIDTH - MARGIN - 150, y + 45, titlePaint)
+        val isMonthly = worker.salaryType.equals("Monthly", ignoreCase = true)
+        val wageLabel = if (isMonthly) "Monthly Salary:" else "Daily Wage:"
+        val wageVal = if (isMonthly) "Rs.${worker.dailyWage.toInt()}/mo" else "Rs.${worker.dailyWage.toInt()}"
+        canvas.drawText(wageLabel, PAGE_WIDTH - MARGIN - 150, y + 25, textPaint)
+        canvas.drawText(wageVal, PAGE_WIDTH - MARGIN - 150, y + 45, titlePaint)
         y += 80
         
         // Summary
@@ -594,12 +597,13 @@ object PdfReportGenerator {
                 y = MARGIN + 20
             }
             
-            val p = w.getTotalPresent(month)
-            val a = w.getTotalAbsent(month)
-            val ot = w.getTotalOvertimeHours(month)
-            val adv = w.getTotalAdvance(month)
-            val gross = (p * w.dailyWage) + (ot * (w.dailyWage / 8.0) * 1.5)
-            val net = gross - adv
+            val stats = w.calculateMonthStats(month)
+            val p = stats.presentCount
+            val a = stats.absentCount
+            val ot = stats.overtimeHours
+            val adv = stats.totalAdvance
+            val net = stats.balance
+            val gross = stats.balance + stats.totalAdvance
             grandGross += gross
             grandAdvance += adv
             grandNet += net
@@ -608,8 +612,12 @@ object PdfReportGenerator {
             if (wName.length > 16) wName = wName.substring(0, 13) + "..."
             
             canvas.drawText(wName, MARGIN + 10, y, textBoldPaint)
-            canvas.drawText("${w.dailyWage.toInt()}/d", MARGIN + 150, y, textPaint)
-            canvas.drawText("${if(p % 1 == 0.0) p.toInt() else p}P | ${a.toInt()}A | ${ot.toInt()}h", MARGIN + 220, y, textPaint)
+            val rateSuffix = if (w.salaryType.equals("Monthly", ignoreCase = true)) "/m" else "/d"
+            canvas.drawText("${w.dailyWage.toInt()}$rateSuffix", MARGIN + 150, y, textPaint)
+            val pDisplay = if (p % 1.0 == 0.0) p.toInt().toString() else String.format(Locale.US, "%.1f", p)
+            val aDisplay = if (a % 1.0 == 0.0) a.toInt().toString() else String.format(Locale.US, "%.1f", a)
+            val otDisplay = if (ot % 1.0 == 0.0) ot.toInt().toString() else String.format(Locale.US, "%.1f", ot)
+            canvas.drawText("$pDisplay P | $aDisplay A | ${otDisplay}h", MARGIN + 220, y, textPaint)
             canvas.drawText(adv.toInt().toString(), MARGIN + 360, y, textPaint)
             canvas.drawText(String.format(Locale.US, "%.0f", net), MARGIN + 440, y, textBoldPaint)
             
@@ -709,39 +717,12 @@ object PdfReportGenerator {
     fun generateWorkerReportText(worker: LaborWorker, month: String): String {
         val (year, monthNum) = LaborCalendarHelper.parseYearMonth(month)
         val fullMonthName = "${LaborCalendarHelper.monthsFull.getOrElse(monthNum - 1) { "August" }} $year"
-        val monthAttendance = worker.getAttendanceForMonth(month)
+        val stats = worker.calculateMonthStats(month)
 
-        var presentCount = 0
-        var absentCount = 0
-        var halfDayCount = 0.0
-        var presentHalfCount = 0.0
-        var doubleCount = 0.0
-        var paidLeaveCount = 0.0
-        var totalOtHours = 0.0
-        var totalAdvance = 0.0
-        var totalOtEarnings = 0.0
-        val defaultOtRate = if (worker.dailyWage > 0) (worker.dailyWage / 8.0) * 1.5 else 0.0
-
-        for (rec in monthAttendance.values) {
-            when (rec.status) {
-                AttendanceStatus.PRESENT -> presentCount++
-                AttendanceStatus.ABSENT -> absentCount++
-                AttendanceStatus.HALF_DAY -> halfDayCount += 1.0
-                AttendanceStatus.PRESENT_HALF -> presentHalfCount += 1.0
-                AttendanceStatus.DOUBLE -> doubleCount += 1.0
-                AttendanceStatus.PAID_LEAVE -> paidLeaveCount += 1.0
-                AttendanceStatus.OVERTIME -> presentCount++
-                AttendanceStatus.UNMARKED -> {}
-            }
-            totalOtHours += rec.overtimeHours
-            totalAdvance += rec.advanceAmount
-            val effectiveOtRate = rec.overtimeRate
-            totalOtEarnings += (rec.overtimeHours * effectiveOtRate)
-        }
-
-        val effectiveUnits = (presentCount * 1.0) + (halfDayCount * 0.5) + (presentHalfCount * 1.5) + (doubleCount * 2.0) + (paidLeaveCount * 1.0)
-        val grossEarnings = (effectiveUnits * worker.dailyWage) + totalOtEarnings
-        val netBalance = grossEarnings - totalAdvance
+        val presentDisplay = if (stats.presentCount % 1.0 == 0.0) "${stats.presentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", stats.presentCount)
+        val absentDisplay = if (stats.absentCount % 1.0 == 0.0) "${stats.absentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", stats.absentCount)
+        val halfDayDisplay = if (stats.halfDayCount % 1.0 == 0.0) "${stats.halfDayCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", stats.halfDayCount)
+        val grossEarnings = stats.balance + stats.totalAdvance
 
         val sb = StringBuilder()
         sb.append("=========================================\n")
@@ -752,24 +733,25 @@ object PdfReportGenerator {
             sb.append("Phone        : ${worker.phoneNumber}\n")
         }
         sb.append("Month/Period : $fullMonthName\n")
-        sb.append("Daily Wage   : ₹${String.format(Locale.ENGLISH, "%,.2f", worker.dailyWage)}\n")
+        val rateTypeLabel = if (worker.salaryType.equals("Monthly", ignoreCase = true)) "Monthly Salary" else "Daily Wage"
+        sb.append("$rateTypeLabel   : ₹${String.format(Locale.ENGLISH, "%,.2f", worker.dailyWage)}\n")
         sb.append("-----------------------------------------\n")
         sb.append("ATTENDANCE SUMMARY:\n")
-        sb.append("  • Present (P)      : $presentCount Days\n")
-        sb.append("  • Absent (A)       : $absentCount Days\n")
-        sb.append("  • Half Day (½)     : ${if (halfDayCount % 1.0 == 0.0) halfDayCount.toInt() else halfDayCount}\n")
-        sb.append("  • Present+Half     : ${String.format(Locale.ENGLISH, "%.1f", presentHalfCount)}\n")
-        sb.append("  • Double (P+P)     : ${String.format(Locale.ENGLISH, "%.1f", doubleCount)}\n")
-        if (paidLeaveCount > 0) {
-            sb.append("  • Paid Leave (PA)  : ${paidLeaveCount.toInt()}\n")
+        sb.append("  • Present (P)      : $presentDisplay Days\n")
+        sb.append("  • Absent (A)       : $absentDisplay Days\n")
+        sb.append("  • Half Day (½)     : $halfDayDisplay\n")
+        sb.append("  • Present+Half     : ${String.format(Locale.ENGLISH, "%.1f", stats.presentHalfCount)}\n")
+        sb.append("  • Double (P+P)     : ${String.format(Locale.ENGLISH, "%.1f", stats.doubleCount)}\n")
+        if (stats.paidLeaveCount > 0) {
+            sb.append("  • Paid Leave (PA)  : ${stats.paidLeaveCount.toInt()}\n")
         }
-        sb.append("  • Overtime Hours   : ${if (totalOtHours % 1.0 == 0.0) totalOtHours.toInt() else totalOtHours} hrs\n")
+        sb.append("  • Overtime Hours   : ${if (stats.overtimeHours % 1.0 == 0.0) stats.overtimeHours.toInt() else String.format(Locale.ENGLISH, "%.1f", stats.overtimeHours)} hrs\n")
         sb.append("-----------------------------------------\n")
         sb.append("PAYMENT SUMMARY:\n")
         sb.append("  • Total Earnings   : ₹${String.format(Locale.ENGLISH, "%,.2f", grossEarnings)}\n")
-        sb.append("  • Advance Taken    : ₹${String.format(Locale.ENGLISH, "%,.2f", totalAdvance)}\n")
+        sb.append("  • Advance Taken    : ₹${String.format(Locale.ENGLISH, "%,.2f", stats.totalAdvance)}\n")
         sb.append("-----------------------------------------\n")
-        sb.append("  BALANCE PAYABLE    : ₹${String.format(Locale.ENGLISH, "%,.2f", netBalance)}\n")
+        sb.append("  BALANCE PAYABLE    : ₹${String.format(Locale.ENGLISH, "%,.2f", stats.balance)}\n")
         sb.append("=========================================")
         return sb.toString()
     }

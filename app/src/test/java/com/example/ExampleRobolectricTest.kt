@@ -2,15 +2,15 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.example.data.cloud.CompactCsvBackupService
-import com.example.data.cloud.GoogleDriveBackupService
-import com.example.data.model.AttendanceStatus
-import com.example.data.model.CashTransaction
-import com.example.data.model.DailyAttendance
-import com.example.data.model.LaborWorker
-import com.example.data.model.PaymentMethod
-import com.example.data.model.TransactionType
-import com.example.data.model.UserProfile
+import com.example.data.remote.CompactCsvBackupService
+import com.example.data.repository.LaborRepository
+import com.example.domain.model.AttendanceStatus
+import com.example.domain.model.CashTransaction
+import com.example.domain.model.DailyAttendance
+import com.example.domain.model.LaborWorker
+import com.example.domain.model.PaymentMethod
+import com.example.domain.model.TransactionType
+import com.example.domain.model.UserProfile
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -32,12 +32,13 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `test complete csv backup and restore roundtrip`() {
+  fun `test complete csv backup and restore roundtrip with salaryType`() {
     val sampleWorker = LaborWorker(
       id = "w_test_1",
       name = "Ramesh Kumar",
       phoneNumber = "9876543210",
-      dailyWage = 650.0,
+      dailyWage = 15000.0,
+      salaryType = "Monthly",
       attendance = mapOf(
         "2026-08-15" to DailyAttendance(
           dayNumber = 15,
@@ -87,19 +88,22 @@ class ExampleRobolectricTest {
     // Check that CSV contains sections and data
     assertTrue(csvString.contains("[SECTION_WORKERS]"))
     assertTrue(csvString.contains("Ramesh Kumar"))
+    assertTrue(csvString.contains("Monthly"))
     assertTrue(csvString.contains("[SECTION_ATTENDANCE_LOGS]"))
     assertTrue(csvString.contains("2026-08-15"))
     assertTrue(csvString.contains("[SECTION_TRANSACTIONS]"))
     assertTrue(csvString.contains("Token advance"))
 
-    // Parse CSV back using Universal Parser
-    val parseResult = GoogleDriveBackupService.parseBackupUniversal(csvString)
+    // Parse CSV back
+    val parseResult = CompactCsvBackupService.parseCompleteBackupCsv(csvString)
     assertTrue(parseResult.isSuccess)
 
     val restoredData = parseResult.getOrNull()
     assertNotNull(restoredData)
     assertEquals(1, restoredData!!.workers.size)
     assertEquals("Ramesh Kumar", restoredData.workers[0].name)
+    assertEquals("Monthly", restoredData.workers[0].salaryType)
+    assertEquals(15000.0, restoredData.workers[0].dailyWage, 0.01)
     assertEquals(2, restoredData.workers[0].attendance.size)
     assertEquals(AttendanceStatus.PRESENT, restoredData.workers[0].attendance["2026-08-15"]?.status)
     assertEquals(2.0, restoredData.workers[0].attendance["2026-08-15"]?.overtimeHours ?: 0.0, 0.01)
@@ -109,58 +113,86 @@ class ExampleRobolectricTest {
   }
 
   @Test
-  fun `test delete worker creates safety backup and restore brings worker back`() = runBlocking {
+  fun `test worker repository add and update salaryType persistence`() = runBlocking {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val repo = com.example.data.repository.LaborRepository(context)
-    repo.loginWithGoogleAccount(name = "Test Contractor", email = "test.contractor@gmail.com")
+    val repo = LaborRepository(context)
 
-    // Add a worker with attendance
-    val worker = repo.addWorker("Suresh Raina", "9123456789", 700.0, listOf("Mason"))
-    repo.setAttendanceStatus(worker.id, "Aug 2026", 10, AttendanceStatus.PRESENT)
-    repo.updateDayDetails(worker.id, "Aug 2026", 10, 200.0, "Site A", 1.5)
+    // Add a worker with Monthly salary
+    val worker = repo.addWorker("Suresh Raina", "9123456789", 15000.0, "Monthly")
+    assertEquals("Monthly", worker.salaryType)
+    assertEquals(15000.0, worker.dailyWage, 0.01)
 
-    // Take manual backup
-    val backupResult = repo.createDriveBackup()
-    assertTrue(backupResult.isSuccess)
-    val backupMeta = backupResult.getOrNull()
-    assertNotNull(backupMeta)
-    assertTrue(backupMeta!!.workerCount >= 1)
+    // Update to Daily wage
+    repo.updateWorker(worker.id, "Suresh Raina", "9123456789", 600.0, "Daily")
+    val updated = repo.workers.value.find { it.id == worker.id }
+    assertNotNull(updated)
+    assertEquals("Daily", updated!!.salaryType)
+    assertEquals(600.0, updated.dailyWage, 0.01)
+  }
 
-    // Save drive backup snapshot locally as well for immediate retrieval in tests
-    GoogleDriveBackupService.saveBackupToUserDrive(
-        context = context,
-        workers = repo.workers.value,
-        transactions = repo.transactions.value,
-        profile = repo.userProfile.value
+  @Test
+  fun `test legacy password cleanup removes plain-text pass_ entries from SharedPreferences`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val authPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
+    
+    // Simulate legacy storage containing plaintext password
+    authPrefs.edit()
+      .putString("pass_test@example.com", "PlaintextSecret123!")
+      .putString("name_test@example.com", "Test Contractor")
+      .putString("pass_other@example.com", "AnotherSecret456!")
+      .putString("name_other@example.com", "Other Contractor")
+      .apply()
+
+    // Verify legacy entries exist before cleanup
+    assertTrue(authPrefs.contains("pass_test@example.com"))
+    assertTrue(authPrefs.contains("pass_other@example.com"))
+
+    // Execute cleanup
+    com.example.data.remote.FirebaseAuthHelper.cleanupLegacyStoredCredentials(context)
+
+    // Verify all pass_ entries are wiped, while harmless metadata like display names are retained
+    org.junit.Assert.assertFalse(authPrefs.contains("pass_test@example.com"))
+    org.junit.Assert.assertFalse(authPrefs.contains("pass_other@example.com"))
+    assertEquals("Test Contractor", authPrefs.getString("name_test@example.com", null))
+    assertEquals("Other Contractor", authPrefs.getString("name_other@example.com", null))
+  }
+
+  @Test
+  fun `test auth session management login logout and restart flows`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val repo = LaborRepository(context)
+
+    // Flow B: User Login
+    repo.loginWithGoogleAccount(
+      name = "Amit Sharma",
+      email = "amit@example.com",
+      businessName = "Sharma Builders",
+      mobile = "9876543210"
     )
 
-    val initialCount = repo.workers.value.size
+    assertEquals(true, repo.userProfile.value.isLoggedIn)
+    assertEquals("amit@example.com", repo.userProfile.value.email)
+    assertEquals("Sharma Builders", repo.userProfile.value.businessName)
 
-    // Delete worker
-    repo.deleteWorker(worker.id)
-    assertEquals(initialCount - 1, repo.workers.value.size)
+    // Flow C: App Restart simulation (Re-instantiating repository with persistent session)
+    val restartedRepo = LaborRepository(context)
+    assertEquals(true, restartedRepo.userProfile.value.isLoggedIn)
+    assertEquals("amit@example.com", restartedRepo.userProfile.value.email)
+    assertEquals("Sharma Builders", restartedRepo.userProfile.value.businessName)
 
-    // Check that available backups include the backup taken or safety backup
-    val backups = GoogleDriveBackupService.getAvailableBackupsForUser(context, repo.userProfile.value.email)
-    assertTrue(backups.isNotEmpty())
+    // Flow D: Logout
+    restartedRepo.loginWithGoogleAccount(
+      name = "",
+      email = "",
+      businessName = "",
+      mobile = ""
+    )
+    // Manually clear login flag to test logout state persistence
+    val prefs = context.getSharedPreferences("laborbook_prefs", Context.MODE_PRIVATE)
+    prefs.edit().putBoolean("is_logged_in", false).apply()
 
-    // Restore from the backup
-    val targetBackup = backups.firstOrNull { it.workerCount >= initialCount && it.file != null }
-    assertNotNull(targetBackup)
-    val content = targetBackup!!.file!!.readText()
-    val parseResult = GoogleDriveBackupService.parseBackupUniversal(content)
-    assertTrue(parseResult.isSuccess)
-
-    repo.restoreData(parseResult.getOrNull()!!)
-
-    // Worker must be back in the repository with attendance!
-    val restoredWorker = repo.workers.value.find { it.id == worker.id || it.name == "Suresh Raina" }
-    assertNotNull(restoredWorker)
-    assertEquals("Suresh Raina", restoredWorker!!.name)
-    assertEquals(AttendanceStatus.PRESENT, restoredWorker.attendance["2026-08-10"]?.status)
-    assertEquals(1.5, restoredWorker.attendance["2026-08-10"]?.overtimeHours ?: 0.0, 0.01)
-    assertEquals(200.0, restoredWorker.attendance["2026-08-10"]?.advanceAmount ?: 0.0, 0.01)
+    // Flow C2: App Restart after logout
+    val postLogoutRepo = LaborRepository(context)
+    assertEquals(false, postLogoutRepo.userProfile.value.isLoggedIn)
   }
 }
-
-

@@ -58,7 +58,9 @@ fun EditWorkerProfileBottomSheet(
     onSave: (newName: String, newSalary: Double, salaryType: String) -> Unit
 ) {
     var nameInput by remember { mutableStateOf(worker.name) }
-    var selectedSalaryType by remember { mutableStateOf("Daily") } // "Daily" or "Monthly"
+    var selectedSalaryType by remember(worker.salaryType) { 
+        mutableStateOf(if (worker.salaryType.equals("Monthly", ignoreCase = true)) "Monthly" else "Daily") 
+    }
     
     val initialSalaryStr = remember(worker.dailyWage) {
         if (worker.dailyWage > 0) {

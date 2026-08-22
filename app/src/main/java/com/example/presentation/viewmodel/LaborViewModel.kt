@@ -272,8 +272,8 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
         repository.updateDayDetails(workerId, monthStr, dayNumber, advance, note, otHours, otRate, paymentMethod)
     }
 
-    fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double) {
-        repository.updateWorker(workerId, name, phone, dailyWage)
+    fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double, salaryType: String = "Daily") {
+        repository.updateWorker(workerId, name, phone, dailyWage, salaryType)
     }
 
     fun deleteWorker(workerId: String) {
@@ -391,7 +391,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
             repository.backupToCloud()
             val totalAdv = workers.value.sumOf { w -> w.attendance.values.sumOf { it.advanceAmount } }
             val netCash = transactions.value.filter { it.type == com.example.domain.model.TransactionType.CASH_IN }.sumOf { it.amount } - transactions.value.filter { it.type == com.example.domain.model.TransactionType.CASH_OUT }.sumOf { it.amount }
-            val summary = if (workers.value.isEmpty()) "No workers registered" else workers.value.joinToString("; ") { "${it.name}: ₹${it.dailyWage}/day" }
+            val summary = if (workers.value.isEmpty()) "No workers registered" else workers.value.joinToString("; ") { 
+                val unit = if (it.salaryType.equals("Monthly", ignoreCase = true)) "month" else "day"
+                "${it.name}: ₹${it.dailyWage}/$unit" 
+            }
             CloudSyncService.syncDataToCloud(
                 workerCount = workers.value.size,
                 transactionCount = transactions.value.size,

@@ -99,9 +99,9 @@ object CompactCsvBackupService {
 
         // SECTION 2: LABOR WORKERS MASTER LIST
         sb.append("[SECTION_WORKERS]\n")
-        sb.append("WorkerId,Name,PhoneNumber,DailyWage,AvatarColorHex,CreatedAt\n")
+        sb.append("WorkerId,Name,PhoneNumber,DailyWage,AvatarColorHex,CreatedAt,SalaryType\n")
         for (w in workers) {
-            sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(w.phoneNumber)},${w.dailyWage},${escapeCsv(w.avatarColorHex)},${w.createdAt}\n")
+            sb.append("${escapeCsv(w.id)},${escapeCsv(w.name)},${escapeCsv(w.phoneNumber)},${w.dailyWage},${escapeCsv(w.avatarColorHex)},${w.createdAt},${escapeCsv(w.salaryType)}\n")
         }
         sb.append("\n")
 
@@ -195,12 +195,14 @@ object CompactCsvBackupService {
                             val wage = tokens.getOrElse(3) { "0.0" }.toDoubleOrNull() ?: 0.0
                             val color = tokens.getOrElse(4) { "#1656D6" }
                             val createdAt = tokens.getOrElse(5) { System.currentTimeMillis().toString() }.toLongOrNull() ?: System.currentTimeMillis()
+                            val salaryType = tokens.getOrElse(6) { "Daily" }.ifBlank { "Daily" }
 
                             val worker = LaborWorker(
                                 id = id,
                                 name = name,
                                 phoneNumber = phone,
                                 dailyWage = wage,
+                                salaryType = salaryType,
                                 avatarColorHex = color,
                                 attendance = emptyMap(),
                                 createdAt = createdAt

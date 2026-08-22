@@ -113,12 +113,17 @@ object AttendanceReminderHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val now = Calendar.getInstance()
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hourOfDay)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            if (before(Calendar.getInstance())) {
+            
+            // Add a 1-minute buffer so that if the alarm fires a few milliseconds early,
+            // it doesn't mistakenly schedule itself for "today" again, causing an infinite loop.
+            now.add(Calendar.MINUTE, 1)
+            if (before(now)) {
                 add(Calendar.DAY_OF_YEAR, 1)
             }
         }

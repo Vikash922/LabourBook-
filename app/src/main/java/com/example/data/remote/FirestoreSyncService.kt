@@ -2,9 +2,13 @@ package com.example.data.remote
 
 import android.content.Context
 import android.util.Log
+import com.example.BuildConfig
 import com.example.domain.model.LaborWorker
 import com.example.domain.model.CashTransaction
 import com.example.domain.model.UserProfile
+import com.example.domain.model.DailyAttendance
+import com.example.domain.model.AttendanceStatus
+import com.example.domain.model.PaymentMethod
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -13,13 +17,16 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.PersistentCacheSettings
+import com.google.firebase.firestore.DocumentSnapshot
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object FirestoreSyncService {
     private const val TAG = "FirestoreSyncService"
+    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var isFirestoreConfigured = false
 
     private fun getFirestoreInstance(context: Context? = null): FirebaseFirestore? {
@@ -31,11 +38,11 @@ object FirestoreSyncService {
                 if (FirebaseApp.getApps(context).isEmpty()) {
                     try {
                         val options = FirebaseOptions.Builder()
-                            .setApplicationId("1:1027179208222:android:ac3483799fc5ed6c6a580f")
-                            .setApiKey("AIzaSyAMeOVp4gfkmBrOv_uMfOUuokXHQLFwFZY")
-                            .setProjectId("laborbook-4c47e")
-                            .setGcmSenderId("1027179208222")
-                            .setStorageBucket("laborbook-4c47e.firebasestorage.app")
+                            .setApplicationId(BuildConfig.FIREBASE_APPLICATION_ID)
+                            .setApiKey(BuildConfig.FIREBASE_API_KEY)
+                            .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
+                            .setGcmSenderId(BuildConfig.FIREBASE_GCM_SENDER_ID)
+                            .setStorageBucket(BuildConfig.FIREBASE_STORAGE_BUCKET)
                             .build()
                         FirebaseApp.initializeApp(context.applicationContext, options)
                     } catch (_: Throwable) {}
@@ -100,6 +107,7 @@ object FirestoreSyncService {
                     "name" to w.name,
                     "phoneNumber" to w.phoneNumber,
                     "dailyWage" to w.dailyWage,
+                    "salaryType" to w.salaryType,
                     "workerId" to w.id
                 )
             }
@@ -109,7 +117,8 @@ object FirestoreSyncService {
                 workers.joinToString("; ") {
                     val wageFormatted = if (it.dailyWage % 1.0 == 0.0) it.dailyWage.toInt().toString() else it.dailyWage.toString()
                     val phoneFormatted = if (it.phoneNumber.isNotBlank()) it.phoneNumber else "No Phone"
-                    "${it.name} ($phoneFormatted): ₹$wageFormatted/day"
+                    val rateUnit = if (it.salaryType.equals("Monthly", ignoreCase = true)) "month" else "day"
+                    "${it.name} ($phoneFormatted): ₹$wageFormatted/$rateUnit"
                 }
             }
 
@@ -238,22 +247,23 @@ object FirestoreSyncService {
                     txRes = legacyUserDoc.collection("payments").get().await()
                     
                     // Auto-migrate in background
-                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    syncScope.launch {
                         try {
                             val profileToSave = profileDoc.toObject(UserProfile::class.java) ?: UserProfile(isLoggedIn = true, email = userEmail)
-                            val workersToSave = workersRes.documents.mapNotNull { it.toObject(LaborWorker::class.java) }
+                            val workersToSave = legacyWorkersRes.documents.mapNotNull { parseWorkerDocument(it) }
                             val txToSave = txRes.documents.mapNotNull { it.toObject(CashTransaction::class.java) }
                             syncDataToCloud(profileToSave, workersToSave, txToSave, context)
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Legacy data auto-migration background sync failed: ${e.message}", e)
+                        }
                     }
                 }
             }
 
             val profile = profileDoc.toObject(UserProfile::class.java) ?: UserProfile(isLoggedIn = true, email = userEmail ?: "")
 
-            // Fetch Workers
-            val rawWorkers = workersRes.documents.mapNotNull { it.toObject(LaborWorker::class.java) }
-            val workers = rawWorkers
+            // Fetch Workers (with exact property & overtimeRate extraction)
+            val workers = workersRes.documents.mapNotNull { parseWorkerDocument(it) }
 
             // Fetch Transactions
             val transactions = txRes.documents.mapNotNull { it.toObject(CashTransaction::class.java) }
@@ -269,16 +279,86 @@ object FirestoreSyncService {
             )
 
             // Immediately update the root document with full metadata so old users get new fields automatically
-            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            syncScope.launch {
                 try {
                     syncDataToCloud(profile, workers, transactions, context)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    Log.w(TAG, "Post-download metadata background sync failed: ${e.message}", e)
+                }
             }
 
             Result.success(backup)
         } catch (e: Exception) {
             Log.d(TAG, "Download note: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    fun parseWorkerDocument(doc: DocumentSnapshot): LaborWorker? {
+        return try {
+            val id = doc.getString("id") ?: doc.id
+            val name = doc.getString("name") ?: ""
+            val phoneNumber = doc.getString("phoneNumber") ?: ""
+            val dailyWage = doc.getDouble("dailyWage") ?: (doc.get("dailyWage") as? Number)?.toDouble() ?: 0.0
+            val salaryType = doc.getString("salaryType") ?: "Daily"
+            val avatarColorHex = doc.getString("avatarColorHex") ?: "#1656D6"
+            val createdAt = doc.getLong("createdAt") ?: (doc.get("createdAt") as? Number)?.toLong() ?: System.currentTimeMillis()
+            
+            val rawAttendance = doc.get("attendance") as? Map<*, *>
+            val attendanceMap = mutableMapOf<String, DailyAttendance>()
+            
+            if (rawAttendance != null) {
+                for ((key, value) in rawAttendance) {
+                    val dateKey = key?.toString() ?: continue
+                    if (value is Map<*, *>) {
+                        val dayNum = (value["dayNumber"] as? Number)?.toInt() ?: 1
+                        val dayOfWeek = value["dayOfWeek"]?.toString() ?: "Mon"
+                        val fullDate = value["fullDate"]?.toString() ?: dateKey
+                        val statusStr = value["status"]?.toString() ?: "UNMARKED"
+                        val status = try {
+                            AttendanceStatus.valueOf(statusStr)
+                        } catch (_: Exception) {
+                            AttendanceStatus.fromSymbol(statusStr)
+                        }
+                        val otHours = (value["overtimeHours"] as? Number)?.toDouble() ?: 0.0
+                        val otRate = (value["overtimeRate"] as? Number)?.toDouble() ?: 0.0
+                        val adv = (value["advanceAmount"] as? Number)?.toDouble() ?: 0.0
+                        val note = value["note"]?.toString() ?: ""
+                        val pmStr = value["paymentMethod"]?.toString() ?: "ONLINE"
+                        val pm = try { PaymentMethod.valueOf(pmStr) } catch (_: Exception) { PaymentMethod.ONLINE }
+                        
+                        attendanceMap[dateKey] = DailyAttendance(
+                            dayNumber = dayNum,
+                            dayOfWeek = dayOfWeek,
+                            fullDate = fullDate,
+                            status = status,
+                            overtimeHours = otHours,
+                            overtimeRate = otRate,
+                            advanceAmount = adv,
+                            note = note,
+                            paymentMethod = pm
+                        )
+                    }
+                }
+            } else {
+                val directWorker = doc.toObject(LaborWorker::class.java)
+                if (directWorker != null) {
+                    attendanceMap.putAll(directWorker.attendance)
+                }
+            }
+            
+            LaborWorker(
+                id = id,
+                name = name,
+                phoneNumber = phoneNumber,
+                dailyWage = dailyWage,
+                salaryType = salaryType,
+                avatarColorHex = avatarColorHex,
+                attendance = attendanceMap,
+                createdAt = createdAt
+            )
+        } catch (e: Exception) {
+            doc.toObject(LaborWorker::class.java)
         }
     }
 
@@ -331,7 +411,9 @@ object FirestoreSyncService {
             if (userDoc != null) {
                 userDoc.collection("workers").document(workerId).delete()
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteWorker cloud sync note: ${e.message}")
+        }
     }
     
     suspend fun deleteTransaction(txId: String, context: Context? = null) {
@@ -347,11 +429,13 @@ object FirestoreSyncService {
             if (userDoc != null) {
                 userDoc.collection("payments").document(txId).delete()
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteTransaction cloud sync note: ${e.message}")
+        }
     }
 
     fun recordAppOpened(context: Context? = null) {
-        GlobalScope.launch(Dispatchers.IO) {
+        syncScope.launch {
             try {
                 val db = getFirestoreInstance(context) ?: return@launch
                 val uid = FirebaseAuth.getInstance().currentUser?.uid
@@ -372,7 +456,9 @@ object FirestoreSyncService {
                         SetOptions.merge()
                     )
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "recordAppOpened background sync failed: ${e.message}", e)
+            }
         }
     }
 }

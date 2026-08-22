@@ -18,6 +18,11 @@ class AttendanceReminderReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent?) {
+        if (intent?.action == Intent.ACTION_BOOT_COMPLETED || intent?.action == "android.intent.action.MY_PACKAGE_REPLACED") {
+            AttendanceReminderHelper.scheduleDailyReminders(context)
+            return
+        }
+
         if (intent?.action == ACTION_DISMISS_NOTIFICATION) {
             val idToCancel = intent.getIntExtra(EXTRA_NOTIFICATION_ID_TO_CANCEL, -1)
             if (idToCancel != -1) {

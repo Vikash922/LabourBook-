@@ -21,6 +21,12 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    buildConfigField("String", "FIREBASE_APPLICATION_ID", "\"1:1027179208222:android:ac3483799fc5ed6c6a580f\"")
+    buildConfigField("String", "FIREBASE_API_KEY", "\"AIzaSyAMeOVp4gfkmBrOv_uMfOUuokXHQLFwFZY\"")
+    buildConfigField("String", "FIREBASE_PROJECT_ID", "\"laborbook-4c47e\"")
+    buildConfigField("String", "FIREBASE_GCM_SENDER_ID", "\"1027179208222\"")
+    buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"laborbook-4c47e.firebasestorage.app\"")
   }
 
   signingConfigs {

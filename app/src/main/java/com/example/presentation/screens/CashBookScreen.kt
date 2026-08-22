@@ -77,6 +77,7 @@ import com.example.presentation.theme.LaborTextSecondary
 import com.example.presentation.viewmodel.LaborViewModel
 import com.example.presentation.viewmodel.Screen
 import com.example.core.util.AppStrings
+import com.example.core.util.LaborCalendarHelper
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -105,7 +106,10 @@ fun CashBookScreen(
         if (selectedMonth == "All Months" || selectedMonth.isBlank()) {
             nonZeroList
         } else {
-            // E.g. "Aug 2026" matches "2026-08" or "Aug"
+            // E.g. "Aug 2026" matches "2026-08" or "Aug 2026"
+            // Note: fullDate is expected in "yyyy-MM-dd" format. Any matching logic must
+            // anchor on both year and month together, never month alone.
+            // Example: Filtering by "Aug 2026" matches "2026-08-15", but must NOT match "2025-08-15".
             val monthMap = mapOf(
                 "Jan" to "01", "Feb" to "02", "Mar" to "03", "Apr" to "04",
                 "May" to "05", "Jun" to "06", "Jul" to "07", "Aug" to "08",
@@ -118,11 +122,11 @@ fun CashBookScreen(
 
             nonZeroList.filter { tx ->
                 val matchFullDate = if (monthNum != null && yearPart.isNotBlank()) {
-                    tx.fullDate.startsWith("$yearPart-$monthNum") || tx.fullDate.contains("-$monthNum-")
+                    tx.fullDate.startsWith("$yearPart-$monthNum")
                 } else false
 
                 val matchDisplayDate = tx.dateDisplay.contains(monthPart, ignoreCase = true) &&
-                        (yearPart.isBlank() || tx.dateDisplay.contains(yearPart) || tx.fullDate.contains(yearPart))
+                        (yearPart.isBlank() || tx.dateDisplay.contains(yearPart) || tx.fullDate.startsWith(yearPart))
 
                 matchFullDate || matchDisplayDate
             }
@@ -133,10 +137,49 @@ fun CashBookScreen(
     val cashOutTotal = remember(displayTransactions) { displayTransactions.filter { it.type == TransactionType.CASH_OUT }.sumOf { it.amount } }
     val balance = cashInTotal - cashOutTotal
 
-    val monthsList = listOf(
-        "Aug 2026", "Jul 2026", "Jun 2026", "May 2026", "Apr 2026",
-        "Sep 2026", "Oct 2026", "Nov 2026", "Dec 2026", "All Months"
-    )
+    val monthsList = remember(allTransactions) {
+        val currentYear = LaborCalendarHelper.todayYear
+        val currentMonth = LaborCalendarHelper.todayMonth
+
+        // 1. Rolling window of the last 12 months up to and including current month
+        val rollingMonths = mutableListOf<Pair<Int, Int>>()
+        var y = currentYear
+        var m = currentMonth
+        for (i in 0 until 12) {
+            rollingMonths.add(Pair(y, m))
+            m -= 1
+            if (m < 1) {
+                m = 12
+                y -= 1
+            }
+        }
+
+        // 2. Distinct year-months present in transactions (historical fallback)
+        val transactionYearMonths = mutableSetOf<Pair<Int, Int>>()
+        for (tx in allTransactions) {
+            if (tx.fullDate.isNotBlank()) {
+                val parsed = LaborCalendarHelper.parseYearMonth(tx.fullDate)
+                transactionYearMonths.add(parsed)
+            } else if (tx.dateDisplay.isNotBlank()) {
+                val parsed = LaborCalendarHelper.parseYearMonth(tx.dateDisplay)
+                transactionYearMonths.add(parsed)
+            } else if (tx.timestamp > 0) {
+                val cal = Calendar.getInstance().apply { timeInMillis = tx.timestamp }
+                transactionYearMonths.add(Pair(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1))
+            }
+        }
+
+        // 3. Merge, sort descending by date, remove duplicates
+        val allYearMonths = (rollingMonths + transactionYearMonths).distinct().sortedWith { a, b ->
+            if (a.first != b.first) b.first.compareTo(a.first)
+            else b.second.compareTo(a.second)
+        }
+
+        // 4. Format to "MMM yyyy" and keep "All Months" as the last entry
+        allYearMonths.map { (year, month) ->
+            LaborCalendarHelper.formatYearMonth(year, month)
+        } + "All Months"
+    }
 
     // Calendar Picker Dialog
     val calendar = Calendar.getInstance()

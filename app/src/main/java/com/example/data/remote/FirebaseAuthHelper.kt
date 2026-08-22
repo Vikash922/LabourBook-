@@ -64,6 +64,7 @@ object FirebaseAuthHelper {
                     Log.e(TAG, "Failed to initialize Firebase with options: ${e.message}")
                 }
             }
+            cleanupLegacyStoredCredentials(context)
             FirebaseApp.getApps(context).isNotEmpty()
         } catch (e: Exception) {
             false
@@ -232,7 +233,7 @@ object FirebaseAuthHelper {
                             displayName = fbUser.displayName ?: savedName,
                             email = fbUser.email ?: cleanEmail
                         )
-                        saveLocalAccount(context, cleanEmail, cleanPass, authUser.displayName)
+                        saveLocalAccount(context, cleanEmail, authUser.displayName)
                         return Result.success(authUser)
                     } else {
                         return Result.failure(Exception("Failed to retrieve user profile from server."))
@@ -292,7 +293,7 @@ object FirebaseAuthHelper {
                             displayName = cleanName,
                             email = fbUser.email ?: cleanEmail
                         )
-                        saveLocalAccount(context, cleanEmail, cleanPass, cleanName)
+                        saveLocalAccount(context, cleanEmail, cleanName)
                         return Result.success(authUser)
                     } else {
                         return Result.failure(Exception("Failed to register account on server."))
@@ -315,13 +316,32 @@ object FirebaseAuthHelper {
         }
     }
 
-    private fun saveLocalAccount(context: Context, email: String, pass: String, displayName: String) {
+    private fun saveLocalAccount(context: Context, email: String, displayName: String) {
         try {
             val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            localPrefs.edit()
-                .putString("pass_$email", pass)
-                .putString("name_$email", displayName)
-                .apply()
+            val editor = localPrefs.edit()
+            // Safe cleanup: remove any legacy password entry for this email if present
+            editor.remove("pass_$email")
+            editor.putString("name_$email", displayName)
+            editor.apply()
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Scans and safely removes all legacy plain-text password entries without logging or exposing them.
+     */
+    fun cleanupLegacyStoredCredentials(context: Context) {
+        try {
+            val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
+            val allKeys = localPrefs.all.keys
+            val passKeys = allKeys.filter { it.startsWith("pass_") }
+            if (passKeys.isNotEmpty()) {
+                val editor = localPrefs.edit()
+                for (k in passKeys) {
+                    editor.remove(k)
+                }
+                editor.apply()
+            }
         } catch (_: Exception) {}
     }
 

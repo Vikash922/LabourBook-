@@ -905,11 +905,17 @@ fun LaborDetailScreen(
         var otHours by remember(day, initialTotalOt) { mutableIntStateOf(initialTotalOt.toInt()) }
         var otMinutes by remember(day, initialTotalOt) { mutableIntStateOf(((initialTotalOt - initialTotalOt.toInt()) * 60).roundToInt()) }
         
-        val initialRate = dayRecord?.overtimeRate ?: 0.0
+        val effectiveWage = worker.getEffectiveDailyWage(selectedMonth)
+        val defaultRate = if (effectiveWage > 0.0) (effectiveWage / 8.0) * 1.5 else 0.0
+        val initialRate = if ((dayRecord?.overtimeRate ?: 0.0) > 0.0) dayRecord!!.overtimeRate else defaultRate
         var hourlyRateStr by remember(day, initialRate) {
             mutableStateOf(
                 if (initialRate > 0.0) {
-                    if (initialRate % 1.0 == 0.0) String.format(Locale.ENGLISH, "%.0f", initialRate) else initialRate.toString()
+                    if (initialRate % 1.0 == 0.0) {
+                        String.format(Locale.ENGLISH, "%.0f", initialRate)
+                    } else {
+                        String.format(Locale.ENGLISH, "%.2f", initialRate).trimEnd('0').trimEnd('.')
+                    }
                 } else ""
             )
         }
@@ -1105,7 +1111,7 @@ fun LaborDetailScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     // Bottom Action Buttons: Remove Overtime (Left) & Ok (Right)
-                    val isOkActive = currentTotalHours > 0 || totalOvertimeAmount > 0
+                    val isOkActive = currentTotalHours > 0.0 && hourlyRateStr.isNotBlank() && currentRate > 0.0
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1162,25 +1168,30 @@ fun LaborDetailScreen(
                         // Right: Ok Button
                         Button(
                             onClick = {
-                                viewModel.updateDayDetails(
-                                    workerId = worker.id,
-                                    dayNumber = day,
-                                    advance = dayRecord?.advanceAmount ?: 0.0,
-                                    note = dayRecord?.note ?: "",
-                                    otHours = currentTotalHours,
-                                    otRate = currentRate,
-                                    monthStr = selectedMonth,
-                                    paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE
-                                )
-                                selectedDayForOvertimeDialog = null
+                                if (isOkActive) {
+                                    viewModel.updateDayDetails(
+                                        workerId = worker.id,
+                                        dayNumber = day,
+                                        advance = dayRecord?.advanceAmount ?: 0.0,
+                                        note = dayRecord?.note ?: "",
+                                        otHours = currentTotalHours,
+                                        otRate = currentRate,
+                                        monthStr = selectedMonth,
+                                        paymentMethod = dayRecord?.paymentMethod ?: PaymentMethod.ONLINE
+                                    )
+                                    selectedDayForOvertimeDialog = null
+                                }
                             },
+                            enabled = isOkActive,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp),
                             shape = RoundedCornerShape(23.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isOkActive) Color(0xFF1D61D2) else Color(0xFFE5E7EB),
-                                contentColor = if (isOkActive) Color.White else Color(0xFF9CA3AF)
+                                contentColor = if (isOkActive) Color.White else Color(0xFF9CA3AF),
+                                disabledContainerColor = Color(0xFFE5E7EB),
+                                disabledContentColor = Color(0xFF9CA3AF)
                             )
                         ) {
                             Text(
@@ -1300,7 +1311,7 @@ fun LaborDetailScreen(
             worker = worker,
             onDismiss = { showEditWorkerDialog = false },
             onSave = { newName, newSalary, salaryType ->
-                viewModel.updateWorker(worker.id, newName, worker.phoneNumber, newSalary)
+                viewModel.updateWorker(worker.id, newName, worker.phoneNumber, newSalary, salaryType)
                 showEditWorkerDialog = false
             }
         )

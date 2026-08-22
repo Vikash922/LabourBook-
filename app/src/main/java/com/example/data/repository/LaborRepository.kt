@@ -271,10 +271,11 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Fallback for backwards compatibility, simply calls persistLocalData
+     * Persists data to local storage only, without triggering a cloud sync — used when an action (like delete)
+     * should be undoable before the change is reflected in cloud backups.
      */
     private fun persistLocalWorkingStateOnly() {
-        persistLocalData(syncToCloud = true)
+        persistLocalData(syncToCloud = false)
     }
 
     /**
@@ -593,7 +594,8 @@ class LaborRepository(private val context: Context? = null) {
     fun addWorker(
         name: String,
         phone: String,
-        wage: Double = 0.0
+        wage: Double = 0.0,
+        salaryType: String = "Daily"
     ): LaborWorker {
         val colors = listOf("#1656D6", "#D8B4FE", "#A7F3D0", "#FFD1B3", "#FBCFE8", "#BAE6FD")
         val color = colors[(_workers.value.size) % colors.size]
@@ -603,6 +605,7 @@ class LaborRepository(private val context: Context? = null) {
             name = name,
             phoneNumber = phone,
             dailyWage = wage,
+            salaryType = salaryType,
             avatarColorHex = color,
             attendance = emptyMap()
         )
@@ -625,11 +628,11 @@ class LaborRepository(private val context: Context? = null) {
         persistLocalData()
     }
 
-    fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double) {
+    fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double, salaryType: String = "Daily") {
         var updated: LaborWorker? = null
         _workers.value = _workers.value.map { worker ->
             if (worker.id == workerId) {
-                val w = worker.copy(name = name, phoneNumber = phone, dailyWage = dailyWage)
+                val w = worker.copy(name = name, phoneNumber = phone, dailyWage = dailyWage, salaryType = salaryType)
                 updated = w
                 w
             } else {
@@ -699,7 +702,12 @@ class LaborRepository(private val context: Context? = null) {
                 }
 
                 val otRate = if (otHours > 0.0) {
-                    existing?.overtimeRate ?: 0.0
+                    if ((existing?.overtimeRate ?: 0.0) > 0.0) {
+                        existing!!.overtimeRate
+                    } else {
+                        val effectiveWage = worker.getEffectiveDailyWage(monthStr)
+                        if (effectiveWage > 0.0) (effectiveWage / 8.0) * 1.5 else 0.0
+                    }
                 } else {
                     0.0
                 }
@@ -758,10 +766,12 @@ class LaborRepository(private val context: Context? = null) {
                     currentStatus
                 }
 
+                val effectiveWage = worker.getEffectiveDailyWage(monthStr)
+                val defaultOtRate = if (effectiveWage > 0.0) (effectiveWage / 8.0) * 1.5 else 0.0
                 val finalRate = if (otRate > 0.0) {
                     otRate
                 } else if (otHours > 0.0) {
-                    existing?.overtimeRate ?: 0.0
+                    if ((existing?.overtimeRate ?: 0.0) > 0.0) existing!!.overtimeRate else defaultOtRate
                 } else {
                     0.0
                 }

@@ -64,10 +64,25 @@ data class LaborWorker(
     val name: String = "",
     val phoneNumber: String = "",
     val dailyWage: Double = 0.0,
+    val salaryType: String = "Daily", // "Daily" or "Monthly"
     val avatarColorHex: String = "#1656D6",
     val attendance: Map<String, DailyAttendance> = emptyMap(), // keyed by date "yyyy-MM-dd" e.g. "2026-08-15"
     val createdAt: Long = System.currentTimeMillis()
 ) {
+    fun getEffectiveDailyWage(monthStr: String? = null): Double {
+        return if (salaryType.equals("Monthly", ignoreCase = true)) {
+            if (monthStr != null) {
+                val (year, month) = LaborCalendarHelper.parseYearMonth(monthStr)
+                val daysInMonth = LaborCalendarHelper.getDaysInMonth(year, month)
+                if (daysInMonth > 0) dailyWage / daysInMonth.toDouble() else dailyWage / 30.0
+            } else {
+                dailyWage / 30.0
+            }
+        } else {
+            dailyWage
+        }
+    }
+
     fun getAttendanceForMonth(monthStr: String): Map<Int, DailyAttendance> {
         val (year, month) = LaborCalendarHelper.parseYearMonth(monthStr)
         val mStr = if (month < 10) "0$month" else month.toString()
@@ -80,7 +95,7 @@ data class LaborWorker(
             } else if (!key.contains("-")) {
                 // Legacy support if key is raw integer string like "15"
                 val day = key.toIntOrNull() ?: value.dayNumber
-                if (year == 2026 && month == 8) {
+                if (value.fullDate.isBlank() || value.fullDate.startsWith(prefix)) {
                     map[day] = value
                 }
             }
@@ -88,7 +103,11 @@ data class LaborWorker(
         return map
     }
 
-    fun calculateMonthStats(monthStr: String = "Aug 2026"): WorkerMonthStats {
+    fun calculateMonthStats(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): WorkerMonthStats {
+        val (year, month) = LaborCalendarHelper.parseYearMonth(monthStr)
+        val daysInMonth = LaborCalendarHelper.getDaysInMonth(year, month)
+        val isMonthly = salaryType.equals("Monthly", ignoreCase = true)
+
         val monthAtt = getAttendanceForMonth(monthStr)
         var present = 0.0
         var absent = 0.0
@@ -99,15 +118,17 @@ data class LaborWorker(
         var presentHalfs = 0.0
         var paidLeaves = 0.0
         var totalOtAmount = 0.0
-        val defaultOtRatePerHour = if (dailyWage > 0) (dailyWage / 8.0) * 1.5 else 0.0
+        
+        val effectiveDailyWage = getEffectiveDailyWage(monthStr)
+        val defaultOtRatePerHour = if (effectiveDailyWage > 0) (effectiveDailyWage / 8.0) * 1.5 else 0.0
 
+        // HALF_DAY contributes 0.5 to presentCount for wage purposes; it does not separately count toward absentCount.
         for (rec in monthAtt.values) {
             when (rec.status) {
                 AttendanceStatus.PRESENT -> present += 1.0
                 AttendanceStatus.OVERTIME -> present += 1.0
                 AttendanceStatus.HALF_DAY -> {
                     present += 0.5
-                    absent += 0.5
                     halfDays += 1.0
                 }
                 AttendanceStatus.PRESENT_HALF -> {
@@ -128,11 +149,21 @@ data class LaborWorker(
             ot += rec.overtimeHours
             adv += rec.advanceAmount
 
-            val effectiveRate = rec.overtimeRate
+            val effectiveRate = if (rec.overtimeRate > 0.0) rec.overtimeRate else defaultOtRatePerHour
             totalOtAmount += (rec.overtimeHours * effectiveRate)
         }
 
-        val netEarnings = (present * dailyWage) + totalOtAmount - adv
+        val baseEarnings = if (isMonthly) {
+            if (daysInMonth > 0) {
+                (present / daysInMonth.toDouble()) * dailyWage
+            } else {
+                (present / 30.0) * dailyWage
+            }
+        } else {
+            present * dailyWage
+        }
+
+        val netEarnings = baseEarnings + totalOtAmount - adv
         return WorkerMonthStats(
             presentCount = present,
             absentCount = absent,
@@ -147,30 +178,15 @@ data class LaborWorker(
         )
     }
 
-    fun getTotalPresent(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).presentCount
+    fun getTotalPresent(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): Double = calculateMonthStats(monthStr).presentCount
 
-    fun getTotalAbsent(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).absentCount
+    fun getTotalAbsent(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): Double = calculateMonthStats(monthStr).absentCount
 
-    fun getTotalOvertimeHours(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).overtimeHours
+    fun getTotalOvertimeHours(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): Double = calculateMonthStats(monthStr).overtimeHours
 
-    fun getTotalAdvance(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).totalAdvance
+    fun getTotalAdvance(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): Double = calculateMonthStats(monthStr).totalAdvance
 
-    fun getEstimatedEarnings(monthStr: String = "Aug 2026"): Double = calculateMonthStats(monthStr).estimatedEarnings
-
-    val totalPresent: Double
-        get() = getTotalPresent("Aug 2026")
-
-    val totalAbsent: Double
-        get() = getTotalAbsent("Aug 2026")
-
-    val totalOvertimeHours: Double
-        get() = getTotalOvertimeHours("Aug 2026")
-
-    val totalAdvance: Double
-        get() = getTotalAdvance("Aug 2026")
-
-    val estimatedEarnings: Double
-        get() = getEstimatedEarnings("Aug 2026")
+    fun getEstimatedEarnings(monthStr: String = LaborCalendarHelper.formatYearMonth(LaborCalendarHelper.todayYear, LaborCalendarHelper.todayMonth)): Double = calculateMonthStats(monthStr).estimatedEarnings
 }
 
 @Stable

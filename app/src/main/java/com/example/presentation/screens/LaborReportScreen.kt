@@ -88,48 +88,12 @@ fun LaborReportScreen(
         return
     }
 
-    // 1. Calculate Accurate Month Stats
+    // 1. Calculate Accurate Month Stats via single source of truth
     val (year, monthNum) = LaborCalendarHelper.parseYearMonth(selectedMonth)
     val fullMonthName = "${LaborCalendarHelper.monthsFull.getOrElse(monthNum - 1) { "August" }} $year"
 
-    val monthAttendance = worker.getAttendanceForMonth(selectedMonth)
-
-    var presentDaysCount = 0
-    var absentDaysCount = 0
-    var halfDayCount = 0.0
-    var presentHalfCount = 0.0
-    var doubleCount = 0.0
-    var paidLeaveCount = 0.0
-    var totalOvertimeHours = 0.0
-    var totalAdvanceAmount = 0.0
-    var totalOtEarnings = 0.0
-    val defaultOtRatePerHour = if (worker.dailyWage > 0) (worker.dailyWage / 8.0) * 1.5 else 0.0
-
-    for (rec in monthAttendance.values) {
-        when (rec.status) {
-            AttendanceStatus.PRESENT -> presentDaysCount++
-            AttendanceStatus.ABSENT -> absentDaysCount++
-            AttendanceStatus.HALF_DAY -> halfDayCount += 1.0
-            AttendanceStatus.PRESENT_HALF -> presentHalfCount += 1.0
-            AttendanceStatus.DOUBLE -> doubleCount += 1.0
-            AttendanceStatus.PAID_LEAVE -> paidLeaveCount += 1.0
-            AttendanceStatus.OVERTIME -> presentDaysCount++
-            AttendanceStatus.UNMARKED -> {}
-        }
-        totalOvertimeHours += rec.overtimeHours
-        totalAdvanceAmount += rec.advanceAmount
-        val effectiveOtRate = rec.overtimeRate
-        totalOtEarnings += (rec.overtimeHours * effectiveOtRate)
-    }
-
-    val effectivePresentUnits = (presentDaysCount * 1.0) +
-            (halfDayCount * 0.5) +
-            (presentHalfCount * 1.5) +
-            (doubleCount * 2.0) +
-            (paidLeaveCount * 1.0)
-
-    val totalEarnings = (effectivePresentUnits * worker.dailyWage) + totalOtEarnings
-    val netBalance = totalEarnings - totalAdvanceAmount
+    val monthStats = worker.calculateMonthStats(selectedMonth)
+    val totalGrossEarnings = monthStats.balance + monthStats.totalAdvance
 
     val slipText = PdfReportGenerator.generateWorkerReportText(worker, selectedMonth)
 
@@ -303,13 +267,15 @@ fun LaborReportScreen(
                                 )
                             }
                         }
-                        // Daily Wage Pill
+                        // Wage / Salary Pill
+                        val isMonthly = worker.salaryType.equals("Monthly", ignoreCase = true)
+                        val rateLabel = if (isMonthly) "Salary: ₹${worker.dailyWage.toInt()}/mo" else "Rate: ₹${worker.dailyWage.toInt()}/day"
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = Color(0xFFF1F5F9)
                         ) {
                             Text(
-                                text = "Rate: ₹${worker.dailyWage.toInt()}/day",
+                                text = rateLabel,
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFF475569),
@@ -351,23 +317,25 @@ fun LaborReportScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            val presentDisplay = if (monthStats.presentCount % 1.0 == 0.0) "${monthStats.presentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.presentCount)
                             ReportMetricBox(
                                 label = "Present",
-                                value = "$presentDaysCount",
+                                value = presentDisplay,
                                 valueColor = Color(0xFF16A34A),
                                 bgColor = Color(0xFFF0FDF4),
                                 borderColor = Color(0xFFDCFCE7),
                                 modifier = Modifier.weight(1f)
                             )
+                            val absentDisplay = if (monthStats.absentCount % 1.0 == 0.0) "${monthStats.absentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.absentCount)
                             ReportMetricBox(
                                 label = "Absent",
-                                value = "$absentDaysCount",
+                                value = absentDisplay,
                                 valueColor = Color(0xFFDC2626),
                                 bgColor = Color(0xFFFEF2F2),
                                 borderColor = Color(0xFFFEE2E2),
                                 modifier = Modifier.weight(1f)
                             )
-                            val otDisplay = if (totalOvertimeHours % 1.0 == 0.0) "${totalOvertimeHours.toInt()}h" else "${String.format(Locale.ENGLISH, "%.1f", totalOvertimeHours)}h"
+                            val otDisplay = if (monthStats.overtimeHours % 1.0 == 0.0) "${monthStats.overtimeHours.toInt()}h" else "${String.format(Locale.ENGLISH, "%.1f", monthStats.overtimeHours)}h"
                             ReportMetricBox(
                                 label = "Overtime",
                                 value = otDisplay,
@@ -385,7 +353,7 @@ fun LaborReportScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val halfDayDisplay = if (halfDayCount % 1.0 == 0.0) "${halfDayCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", halfDayCount)
+                            val halfDayDisplay = if (monthStats.halfDayCount % 1.0 == 0.0) "${monthStats.halfDayCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.halfDayCount)
                             ReportMetricBox(
                                 label = "Half Day",
                                 value = halfDayDisplay,
@@ -394,7 +362,7 @@ fun LaborReportScreen(
                                 borderColor = Color(0xFFFEF3C7),
                                 modifier = Modifier.weight(1f)
                             )
-                            val presentHalfDisplay = String.format(Locale.ENGLISH, "%.1f", presentHalfCount)
+                            val presentHalfDisplay = if (monthStats.presentHalfCount % 1.0 == 0.0) "${monthStats.presentHalfCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.presentHalfCount)
                             ReportMetricBox(
                                 label = "P + 1/2",
                                 value = presentHalfDisplay,
@@ -403,7 +371,7 @@ fun LaborReportScreen(
                                 borderColor = Color(0xFFE2E8F0),
                                 modifier = Modifier.weight(1f)
                             )
-                            val doubleDisplay = String.format(Locale.ENGLISH, "%.1f", doubleCount)
+                            val doubleDisplay = if (monthStats.doubleCount % 1.0 == 0.0) "${monthStats.doubleCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.doubleCount)
                             ReportMetricBox(
                                 label = "P+P",
                                 value = doubleDisplay,
@@ -415,15 +383,16 @@ fun LaborReportScreen(
                         }
 
                         // Paid Leave (Optional Row if > 0)
-                        if (paidLeaveCount > 0) {
+                        if (monthStats.paidLeaveCount > 0) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                val paidLeaveDisplay = if (monthStats.paidLeaveCount % 1.0 == 0.0) "${monthStats.paidLeaveCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", monthStats.paidLeaveCount)
                                 ReportMetricBox(
                                     label = "Paid Leave (PA)",
-                                    value = "${paidLeaveCount.toInt()}",
+                                    value = paidLeaveDisplay,
                                     valueColor = Color(0xFF7C3AED),
                                     bgColor = Color(0xFFF5F3FF),
                                     borderColor = Color(0xFFEDE9FE),
@@ -474,7 +443,7 @@ fun LaborReportScreen(
                                 color = Color(0xFF475569)
                             )
                             Text(
-                                text = String.format(Locale.ENGLISH, "₹%,.2f", totalAdvanceAmount),
+                                text = String.format(Locale.ENGLISH, "₹%,.2f", monthStats.totalAdvance),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFDC2626)
@@ -495,7 +464,7 @@ fun LaborReportScreen(
                                 color = Color(0xFF475569)
                             )
                             Text(
-                                text = String.format(Locale.ENGLISH, "₹%,.2f", totalEarnings),
+                                text = String.format(Locale.ENGLISH, "₹%,.2f", totalGrossEarnings),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0F172A)
@@ -527,10 +496,10 @@ fun LaborReportScreen(
                                     color = Color(0xFF0F172A)
                                 )
                                 Text(
-                                    text = String.format(Locale.ENGLISH, "₹%,.2f", netBalance),
+                                    text = String.format(Locale.ENGLISH, "₹%,.2f", monthStats.balance),
                                     fontSize = 15.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (netBalance >= 0) Color(0xFF1656D6) else Color(0xFFDC2626)
+                                    color = if (monthStats.balance >= 0) Color(0xFF1656D6) else Color(0xFFDC2626)
                                 )
                             }
                         }
