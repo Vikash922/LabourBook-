@@ -282,6 +282,42 @@ object FirestoreSyncService {
         }
     }
 
+    suspend fun saveWorker(worker: LaborWorker, context: Context? = null) {
+        val db = getFirestoreInstance(context) ?: return
+        try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            if (userDoc == null && userEmail != null) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+            if (userDoc != null) {
+                userDoc.collection("workers").document(worker.id).set(worker, SetOptions.merge())
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "saveWorker cloud sync note: ${e.message}")
+        }
+    }
+
+    suspend fun saveTransaction(tx: CashTransaction, context: Context? = null) {
+        val db = getFirestoreInstance(context) ?: return
+        try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            val userEmail = FirebaseAuth.getInstance().currentUser?.email
+            
+            var userDoc = if (uid != null) db.collection("users").document(uid) else null
+            if (userDoc == null && userEmail != null) {
+                userDoc = db.collection("users").document(userEmail.lowercase())
+            }
+            if (userDoc != null) {
+                userDoc.collection("payments").document(tx.id).set(tx, SetOptions.merge())
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "saveTransaction cloud sync note: ${e.message}")
+        }
+    }
+
     suspend fun deleteWorker(workerId: String, context: Context? = null) {
         val db = getFirestoreInstance(context) ?: return
         try {

@@ -245,7 +245,7 @@ class LaborRepository(private val context: Context? = null) {
         fileWriteJob?.cancel()
         fileWriteJob = repositoryScope.launch(Dispatchers.IO) {
             try {
-                delay(300L) // Debounce rapid writes
+                delay(150L) // Quick debounce
                 if (context != null) {
                     com.example.data.remote.CompactCsvBackupService.saveBackupToCsvFile(context, currentWorkers, currentTransactions, currentProfile)
                 }
@@ -255,14 +255,13 @@ class LaborRepository(private val context: Context? = null) {
             }
         }
 
-        // 2. Debounced background cloud sync (waits 1.5s after user stops typing or tapping)
-        // ONLY sync if there is actually data to prevent overwriting existing backups with empty state
+        // 2. Fast background cloud sync for full metadata
         if (syncToCloud && currentProfile.isLoggedIn) {
             autoSyncJob?.cancel()
             autoSyncJob = repositoryScope.launch(Dispatchers.IO) {
                 try {
-                    delay(1500L) // 1.5s debounce to prevent spamming Firestore
-                    Log.i(TAG, "Executing debounced cloud auto-sync for: $currentEmail")
+                    delay(350L) // Fast 350ms background sync
+                    Log.i(TAG, "Executing cloud auto-sync for: $currentEmail")
                     com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
                 } catch (e: Exception) {
                     Log.w(TAG, "Background auto-sync note: ${e.message}")
@@ -609,6 +608,9 @@ class LaborRepository(private val context: Context? = null) {
         )
 
         _workers.value = _workers.value + newWorker
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.remote.FirestoreSyncService.saveWorker(newWorker, context)
+        }
         persistLocalData()
         return newWorker
     }
@@ -617,15 +619,26 @@ class LaborRepository(private val context: Context? = null) {
         _workers.value = _workers.value.map {
             if (it.id == worker.id) worker else it
         }
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.remote.FirestoreSyncService.saveWorker(worker, context)
+        }
         persistLocalData()
     }
 
     fun updateWorker(workerId: String, name: String, phone: String, dailyWage: Double) {
+        var updated: LaborWorker? = null
         _workers.value = _workers.value.map { worker ->
             if (worker.id == workerId) {
-                worker.copy(name = name, phoneNumber = phone, dailyWage = dailyWage)
+                val w = worker.copy(name = name, phoneNumber = phone, dailyWage = dailyWage)
+                updated = w
+                w
             } else {
                 worker
+            }
+        }
+        updated?.let { w ->
+            repositoryScope.launch(Dispatchers.IO) {
+                com.example.data.remote.FirestoreSyncService.saveWorker(w, context)
             }
         }
         persistLocalData()
@@ -670,6 +683,7 @@ class LaborRepository(private val context: Context? = null) {
         val dateKey = LaborCalendarHelper.getDateKey(year, month, dayNumber)
         val dow = LaborCalendarHelper.getDayOfWeekShort(year, month, dayNumber)
 
+        var updated: LaborWorker? = null
         _workers.value = _workers.value.map { worker ->
             if (worker.id == workerId) {
                 val currentMap = worker.attendance.toMutableMap()
@@ -701,9 +715,16 @@ class LaborRepository(private val context: Context? = null) {
                     note = existing?.note ?: "",
                     paymentMethod = existing?.paymentMethod ?: PaymentMethod.ONLINE
                 )
-                worker.copy(attendance = currentMap)
+                val w = worker.copy(attendance = currentMap)
+                updated = w
+                w
             } else {
                 worker
+            }
+        }
+        updated?.let { w ->
+            repositoryScope.launch(Dispatchers.IO) {
+                com.example.data.remote.FirestoreSyncService.saveWorker(w, context)
             }
         }
         persistLocalData()
@@ -723,6 +744,7 @@ class LaborRepository(private val context: Context? = null) {
         val dateKey = LaborCalendarHelper.getDateKey(year, month, dayNumber)
         val dow = LaborCalendarHelper.getDayOfWeekShort(year, month, dayNumber)
 
+        var updated: LaborWorker? = null
         _workers.value = _workers.value.map { worker ->
             if (worker.id == workerId) {
                 val currentMap = worker.attendance.toMutableMap()
@@ -759,9 +781,16 @@ class LaborRepository(private val context: Context? = null) {
                         paymentMethod = paymentMethod
                     )
                 }
-                worker.copy(attendance = currentMap)
+                val w = worker.copy(attendance = currentMap)
+                updated = w
+                w
             } else {
                 worker
+            }
+        }
+        updated?.let { w ->
+            repositoryScope.launch(Dispatchers.IO) {
+                com.example.data.remote.FirestoreSyncService.saveWorker(w, context)
             }
         }
         persistLocalData()
@@ -785,6 +814,9 @@ class LaborRepository(private val context: Context? = null) {
             notes = notes
         )
         _transactions.value = listOf(newTx) + _transactions.value
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.remote.FirestoreSyncService.saveTransaction(newTx, context)
+        }
         persistLocalData()
         return newTx
     }
@@ -792,6 +824,9 @@ class LaborRepository(private val context: Context? = null) {
     fun updateTransaction(transaction: CashTransaction) {
         _transactions.value = _transactions.value.map {
             if (it.id == transaction.id) transaction else it
+        }
+        repositoryScope.launch(Dispatchers.IO) {
+            com.example.data.remote.FirestoreSyncService.saveTransaction(transaction, context)
         }
         persistLocalData()
     }
