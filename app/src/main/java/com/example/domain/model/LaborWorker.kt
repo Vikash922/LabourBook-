@@ -216,7 +216,6 @@ data class UserProfile(
     val businessName: String = "My Business",
     val mobile: String = "",
     val email: String = "",
-    val appLockEnabled: Boolean = false,
     val language: String = "English",
     val isPro: Boolean = true,
     val isCloudSyncEnabled: Boolean = true,

@@ -150,11 +150,10 @@ class ExampleRobolectricTest {
     // Execute cleanup
     com.example.data.remote.FirebaseAuthHelper.cleanupLegacyStoredCredentials(context)
 
-    // Verify all pass_ entries are wiped, while harmless metadata like display names are retained
+    // Verify the obsolete auth preference file is removed completely
     org.junit.Assert.assertFalse(authPrefs.contains("pass_test@example.com"))
     org.junit.Assert.assertFalse(authPrefs.contains("pass_other@example.com"))
-    assertEquals("Test Contractor", authPrefs.getString("name_test@example.com", null))
-    assertEquals("Other Contractor", authPrefs.getString("name_other@example.com", null))
+    assertFalse(context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE).contains("name_test@example.com"))
   }
 
   @Test

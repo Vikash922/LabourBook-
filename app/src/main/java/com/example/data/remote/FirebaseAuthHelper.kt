@@ -61,7 +61,7 @@ object FirebaseAuthHelper {
                         .build()
                     FirebaseApp.initializeApp(context.applicationContext, options)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to initialize Firebase with options: ${e.message}")
+                    Log.e(TAG, "Failed to initialize Firebase with options")
                 }
             }
             cleanupLegacyStoredCredentials(context)
@@ -123,7 +123,7 @@ object FirebaseAuthHelper {
         val credentialManager = CredentialManager.create(targetContext)
 
         return try {
-            Log.i(TAG, "Requesting Google Credential Manager sign-in with serverClientId: $serverClientId")
+            Log.i(TAG, "Requesting Google Credential Manager sign-in")
             
             // Build Google ID Option for Credential Manager
             val googleIdOption = try {
@@ -174,7 +174,7 @@ object FirebaseAuthHelper {
                             Result.success(AuthUser(uid = email, displayName = displayName, email = email, photoUrl = photoUrl))
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Firebase Auth signInWithCredential notice: ${e.message}. Proceeding with verified Google user.")
+                        Log.w(TAG, "Firebase Auth signInWithCredential was unavailable. Proceeding with verified Google user.")
                         Result.success(AuthUser(uid = email, displayName = displayName, email = email, photoUrl = photoUrl))
                     }
                 } else {
@@ -188,11 +188,11 @@ object FirebaseAuthHelper {
             Log.i(TAG, "Google sign-in cancelled by user.")
             Result.failure(Exception("Sign-in cancelled by user."))
         } catch (e: GetCredentialException) {
-            Log.w(TAG, "Credential Manager API exception: ${e.message}")
-            Result.failure(e)
+            Log.w(TAG, "Credential Manager sign-in failed")
+            Result.failure(Exception("Google sign-in was unavailable. Please try again."))
         } catch (e: Exception) {
-            Log.e(TAG, "Sign in failed: ${e.message}", e)
-            Result.failure(e)
+            Log.e(TAG, "Sign in failed")
+            Result.failure(Exception("Sign-in failed. Please try again."))
         }
     }
 
@@ -219,9 +219,7 @@ object FirebaseAuthHelper {
             val cleanPass = pass.trim()
             if (cleanEmail.isBlank() || cleanPass.isBlank()) return Result.failure(Exception("Email and password cannot be empty."))
             
-            val localName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-            val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            val savedName = localPrefs.getString("name_$cleanEmail", localName) ?: "User"
+            val fallbackName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
 
             if (isFirebaseInitialized(context)) {
                 try {
@@ -230,10 +228,9 @@ object FirebaseAuthHelper {
                     if (fbUser != null) {
                         val authUser = AuthUser(
                             uid = fbUser.uid,
-                            displayName = fbUser.displayName ?: savedName,
+                            displayName = fbUser.displayName ?: fallbackName,
                             email = fbUser.email ?: cleanEmail
                         )
-                        saveLocalAccount(context, cleanEmail, authUser.displayName)
                         return Result.success(authUser)
                     } else {
                         return Result.failure(Exception("Failed to retrieve user profile from server."))
@@ -244,22 +241,22 @@ object FirebaseAuthHelper {
                     return Result.failure(Exception("Account does not exist for $cleanEmail. Please select 'Create Account' to register first."))
                 } catch (e: com.google.firebase.auth.FirebaseAuthException) {
                     val errorCode = e.errorCode
-                    Log.e(TAG, "Firebase Auth Exception code: $errorCode, message: ${e.message}")
+                    Log.e(TAG, "Firebase Auth exception code: $errorCode")
                     if (errorCode == "ERROR_USER_NOT_FOUND" || errorCode == "ERROR_INVALID_USER" || errorCode == "ERROR_USER_DISABLED") {
                         return Result.failure(Exception("Account does not exist for $cleanEmail. Please select 'Create Account' to register first."))
                     } else if (errorCode == "ERROR_WRONG_PASSWORD") {
                         return Result.failure(Exception("Incorrect password for $cleanEmail. Please enter the correct password."))
                     }
-                    return Result.failure(Exception("Authentication error: ${e.localizedMessage}"))
+                    return Result.failure(Exception("Authentication failed. Please try again."))
                 } catch (e: Exception) {
-                    Log.e(TAG, "Firebase Sign In generic exception: ${e.message}", e)
-                    return Result.failure(Exception("Could not authenticate with server. Error: ${e.localizedMessage}"))
+                    Log.e(TAG, "Firebase sign-in failed")
+                    return Result.failure(Exception("Could not authenticate with server. Please try again."))
                 }
             } else {
                 return Result.failure(Exception("Firebase Authentication service is not initialized on this device."))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Sign-in failed. Please try again."))
         }
     }
 
@@ -285,7 +282,7 @@ object FirebaseAuthHelper {
                                 .build()
                             fbUser.updateProfile(profileUpdates).await()
                         } catch (pe: Exception) {
-                            Log.w(TAG, "Failed to update Firebase profile display name: ${pe.message}")
+                            Log.w(TAG, "Failed to update Firebase profile display name")
                         }
 
                         val authUser = AuthUser(
@@ -293,7 +290,6 @@ object FirebaseAuthHelper {
                             displayName = cleanName,
                             email = fbUser.email ?: cleanEmail
                         )
-                        saveLocalAccount(context, cleanEmail, cleanName)
                         return Result.success(authUser)
                     } else {
                         return Result.failure(Exception("Failed to register account on server."))
@@ -303,45 +299,29 @@ object FirebaseAuthHelper {
                 } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
                     return Result.failure(Exception("Password is too weak. Please use at least 6 characters."))
                 } catch (e: com.google.firebase.auth.FirebaseAuthException) {
-                    return Result.failure(Exception("Registration failed: ${e.localizedMessage}"))
+                    return Result.failure(Exception("Registration failed. Please try again."))
                 } catch (e: Exception) {
-                    Log.e(TAG, "Firebase Sign Up generic exception: ${e.message}", e)
+                    Log.e(TAG, "Firebase sign-up failed")
                     return Result.failure(Exception("Could not connect to registration server. Please try again later."))
                 }
             } else {
                 return Result.failure(Exception("Firebase Authentication service is not initialized on this device."))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Account creation failed. Please try again."))
         }
     }
 
-    private fun saveLocalAccount(context: Context, email: String, displayName: String) {
-        try {
-            val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            val editor = localPrefs.edit()
-            // Safe cleanup: remove any legacy password entry for this email if present
-            editor.remove("pass_$email")
-            editor.putString("name_$email", displayName)
-            editor.apply()
-        } catch (_: Exception) {}
-    }
-
     /**
-     * Scans and safely removes all legacy plain-text password entries without logging or exposing them.
+     * Removes the obsolete local auth preference file without reading or exposing its contents.
      */
     fun cleanupLegacyStoredCredentials(context: Context) {
         try {
-            val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            val allKeys = localPrefs.all.keys
-            val passKeys = allKeys.filter { it.startsWith("pass_") }
-            if (passKeys.isNotEmpty()) {
-                val editor = localPrefs.edit()
-                for (k in passKeys) {
-                    editor.remove(k)
-                }
-                editor.apply()
-            }
+            context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+            context.deleteSharedPreferences("laborbook_auth_accounts")
         } catch (_: Exception) {}
     }
 
@@ -355,12 +335,12 @@ object FirebaseAuthHelper {
                     FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
                     return Result.success(Unit)
                 } catch (e: Exception) {
-                    Log.w(TAG, "Firebase reset password notice: ${e.message}")
+                    Log.w(TAG, "Firebase password reset request failed")
                 }
             }
             Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(Exception("Password reset failed. Please try again."))
         }
     }
 
@@ -385,14 +365,14 @@ object FirebaseAuthHelper {
         try {
             FirebaseAuth.getInstance().signOut()
         } catch (e: Exception) {
-            Log.w(TAG, "Firebase sign out notice: ${e.message}")
+            Log.w(TAG, "Firebase sign out failed")
             failure = e
         }
         try {
             val credentialManager = CredentialManager.create(context)
             credentialManager.clearCredentialState(androidx.credentials.ClearCredentialStateRequest())
         } catch (e: Exception) {
-            Log.w(TAG, "CredentialManager clear state notice: ${e.message}")
+            Log.w(TAG, "Credential Manager sign-out cleanup failed")
             if (failure == null) failure = e
         }
         return failure?.let { Result.failure(it) } ?: Result.success(Unit)

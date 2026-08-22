@@ -10,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +23,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -73,7 +74,6 @@ class MainActivity : ComponentActivity() {
     private val viewModel: LaborViewModel by viewModels()
     private lateinit var firebaseAnalytics: FirebaseAnalytics
     private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
-
     private val requestNotificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
@@ -103,7 +103,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LaborbookTheme {
-                LaborbookApp(viewModel = viewModel)
+                LaborbookApp(
+                    viewModel = viewModel
+                )
             }
         }
     }
@@ -166,9 +168,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
-fun LaborbookApp(viewModel: LaborViewModel) {
+fun LaborbookApp(
+    viewModel: LaborViewModel
+) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val selectedTab by viewModel.selectedTabIndex.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()

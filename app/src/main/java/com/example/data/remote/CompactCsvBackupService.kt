@@ -23,12 +23,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 object CompactCsvBackupService {
 
     private const val TAG = "CompactCsvBackup"
     const val MASTER_CSV_FILENAME = "laborbook_master_backup.csv"
     const val DEVICE_DOWNLOAD_FILENAME = "Laborbook_Complete_Backup.csv"
+    private const val LATEST_CSV_FILENAME = "latest_backup.csv"
+    private const val RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000L
+    private val backupLock = Any()
+    private val lastRetentionCleanupAt = AtomicLong(0L)
 
     private fun escapeCsv(value: String): String {
         var str = value.replace("\r", " ").replace("\n", " ")
@@ -94,8 +99,8 @@ object CompactCsvBackupService {
 
         // SECTION 1: USER PROFILE
         sb.append("[SECTION_PROFILE]\n")
-        sb.append("Name,BusinessName,Mobile,Email,Language,AppLock,IsPro,AuthProvider\n")
-        sb.append("${escapeCsv(profile.name)},${escapeCsv(profile.businessName)},${escapeCsv(profile.mobile)},${escapeCsv(profile.email)},${escapeCsv(profile.language)},${profile.appLockEnabled},${profile.isPro},${escapeCsv(profile.authProvider)}\n\n")
+        sb.append("Name,BusinessName,Mobile,Email,Language,IsPro,AuthProvider\n")
+        sb.append("${escapeCsv(profile.name)},${escapeCsv(profile.businessName)},${escapeCsv(profile.mobile)},${escapeCsv(profile.email)},${escapeCsv(profile.language)},${profile.isPro},${escapeCsv(profile.authProvider)}\n\n")
 
         // SECTION 2: LABOR WORKERS MASTER LIST
         sb.append("[SECTION_WORKERS]\n")
@@ -177,10 +182,9 @@ object CompactCsvBackupService {
                                 mobile = tokens.getOrElse(2) { "7848894498" },
                                 email = tokens.getOrElse(3) { accountEmail },
                                 language = tokens.getOrElse(4) { "English" },
-                                appLockEnabled = tokens.getOrElse(5) { "false" }.toBoolean(),
-                                isPro = tokens.getOrElse(6) { "true" }.toBoolean(),
+                                isPro = tokens.getOrElse(5) { "true" }.toBoolean(),
                                 isLoggedIn = true,
-                                authProvider = tokens.getOrElse(7) { "Google" }
+                                authProvider = tokens.getOrElse(6) { "Google" }
                             )
                         }
                     }
@@ -319,24 +323,73 @@ object CompactCsvBackupService {
         profile: UserProfile
     ): File {
         val csvContent = generateCompleteBackupCsv(workers, transactions, profile)
-        val dir = File(context.filesDir, "csv_backups")
-        if (!dir.exists()) dir.mkdirs()
+        return synchronizedBackupWrite(context, csvContent)
+    }
 
-        // Clean up legacy timestamped files so only one master file remains
+    private fun synchronizedBackupWrite(context: Context, csvContent: String): File = synchronized(backupLock) {
+        val dir = File(context.filesDir, "csv_backups")
+        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
+            throw IllegalStateException("Could not create local backup directory")
+        }
+
+        val masterFile = atomicWrite(dir, MASTER_CSV_FILENAME, csvContent.toByteArray(Charsets.UTF_8))
+        // Copy the already serialized bytes; do not call generateCompleteBackupCsv again.
+        atomicCopy(dir, masterFile, LATEST_CSV_FILENAME)
+
+        val now = System.currentTimeMillis()
+        val lastCleanup = lastRetentionCleanupAt.get()
+        if (now - lastCleanup >= RETENTION_CLEANUP_INTERVAL_MS &&
+            lastRetentionCleanupAt.compareAndSet(lastCleanup, now)
+        ) {
+            cleanupLegacyBackups(dir)
+        }
+        masterFile
+    }
+
+    private fun atomicWrite(dir: File, fileName: String, content: ByteArray): File {
+        val target = File(dir, fileName)
+        val temp = File(dir, ".$fileName.tmp")
+        try {
+            FileOutputStream(temp).use { output ->
+                output.write(content)
+                output.flush()
+                output.fd.sync()
+            }
+            if (!temp.renameTo(target)) {
+                throw IllegalStateException("Could not replace local backup")
+            }
+            return target
+        } catch (error: Exception) {
+            temp.delete()
+            throw error
+        }
+    }
+
+    private fun atomicCopy(dir: File, source: File, fileName: String): File {
+        val target = File(dir, fileName)
+        val temp = File(dir, ".$fileName.tmp")
+        try {
+            FileOutputStream(temp).use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+                output.flush()
+                output.fd.sync()
+            }
+            if (!temp.renameTo(target)) {
+                throw IllegalStateException("Could not replace latest local backup")
+            }
+            return target
+        } catch (error: Exception) {
+            temp.delete()
+            throw error
+        }
+    }
+
+    private fun cleanupLegacyBackups(dir: File) {
         dir.listFiles()?.forEach { oldFile ->
-            if (oldFile.name != MASTER_CSV_FILENAME && oldFile.name != "latest_backup.csv") {
+            if (oldFile.name != MASTER_CSV_FILENAME && oldFile.name != LATEST_CSV_FILENAME) {
                 try { oldFile.delete() } catch (_: Exception) {}
             }
         }
-
-        val masterFile = File(dir, MASTER_CSV_FILENAME)
-        masterFile.writeText(csvContent)
-
-        // Also update latest_backup.csv alias
-        val latest = File(dir, "latest_backup.csv")
-        latest.writeText(csvContent)
-
-        return masterFile
     }
 
     /**
@@ -349,8 +402,8 @@ object CompactCsvBackupService {
         transactions: List<CashTransaction>,
         profile: UserProfile
     ): Result<String> {
+        val csvContent = generateCompleteBackupCsv(workers, transactions, profile)
         return try {
-            val csvContent = generateCompleteBackupCsv(workers, transactions, profile)
             val fileName = DEVICE_DOWNLOAD_FILENAME
 
             var savedPath = "Downloads/$fileName"
@@ -386,8 +439,8 @@ object CompactCsvBackupService {
                 savedPath = targetFile.absolutePath
             }
 
-            // Also keep internal master file in sync
-            saveBackupToCsvFile(context, workers, transactions, profile)
+            // Also keep the internal master file in sync without serializing the snapshot again.
+            synchronizedBackupWrite(context, csvContent)
 
             val totalAtt = workers.sumOf { it.attendance.size }
             val msg = "CSV backup saved directly to device ($savedPath).\nOverwrote previous file with ${workers.size} workers, $totalAtt attendance logs & ${transactions.size} cash records."
@@ -397,7 +450,7 @@ object CompactCsvBackupService {
             Log.e(TAG, "Error saving CSV to device downloads: ${e.message}", e)
             // Fallback: save to internal app storage
             try {
-                val file = saveBackupToCsvFile(context, workers, transactions, profile)
+                val file = synchronizedBackupWrite(context, csvContent)
                 Result.success("Saved to app storage: ${file.name} (overwriting previous backup).")
             } catch (ex: Exception) {
                 Result.failure(e)

@@ -16,6 +16,7 @@ import com.example.domain.model.LaborWorker
 import com.example.domain.model.CashTransaction
 import com.example.domain.model.AttendanceStatus
 import com.example.domain.model.TransactionType
+import com.example.domain.model.WorkerMonthStats
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -714,10 +715,13 @@ object PdfReportGenerator {
         }
     }
 
-    fun generateWorkerReportText(worker: LaborWorker, month: String): String {
+    fun generateWorkerReportText(
+        worker: LaborWorker,
+        month: String,
+        stats: WorkerMonthStats = worker.calculateMonthStats(month)
+    ): String {
         val (year, monthNum) = LaborCalendarHelper.parseYearMonth(month)
         val fullMonthName = "${LaborCalendarHelper.monthsFull.getOrElse(monthNum - 1) { "August" }} $year"
-        val stats = worker.calculateMonthStats(month)
 
         val presentDisplay = if (stats.presentCount % 1.0 == 0.0) "${stats.presentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", stats.presentCount)
         val absentDisplay = if (stats.absentCount % 1.0 == 0.0) "${stats.absentCount.toInt()}" else String.format(Locale.ENGLISH, "%.1f", stats.absentCount)

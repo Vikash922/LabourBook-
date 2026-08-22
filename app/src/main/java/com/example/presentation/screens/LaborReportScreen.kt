@@ -92,10 +92,14 @@ fun LaborReportScreen(
     val (year, monthNum) = LaborCalendarHelper.parseYearMonth(selectedMonth)
     val fullMonthName = "${LaborCalendarHelper.monthsFull.getOrElse(monthNum - 1) { "August" }} $year"
 
-    val monthStats = worker.calculateMonthStats(selectedMonth)
+    val monthStats = remember(worker, selectedMonth) {
+        worker.calculateMonthStats(selectedMonth)
+    }
     val totalGrossEarnings = monthStats.balance + monthStats.totalAdvance
 
-    val slipText = PdfReportGenerator.generateWorkerReportText(worker, selectedMonth)
+    val slipText = remember(worker, selectedMonth) {
+        PdfReportGenerator.generateWorkerReportText(worker, selectedMonth, monthStats)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

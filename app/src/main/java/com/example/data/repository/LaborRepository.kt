@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 class LaborRepository(
     private val context: Context? = null,
@@ -72,6 +73,7 @@ class LaborRepository(
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
     private var autoSyncJob: Job? = null
     private var fileWriteJob: Job? = null
+    private val localBackupGeneration = AtomicLong(0L)
 
     init {
         loadActiveSession()
@@ -93,7 +95,6 @@ class LaborRepository(
         val businessName = prefs.getString("business_name", "My Business") ?: "My Business"
         val mobile = prefs.getString("user_mobile", "") ?: ""
         val email = prefs.getString("user_email", "") ?: ""
-        val appLock = prefs.getBoolean("app_lock", false)
         val language = prefs.getString("app_language", "English") ?: "English"
         val authProvider = prefs.getString("auth_provider", "None") ?: "None"
         val lastCloudTime = prefs.getString("last_cloud_time", "Never") ?: "Never"
@@ -104,7 +105,6 @@ class LaborRepository(
             businessName = businessName,
             mobile = mobile,
             email = email,
-            appLockEnabled = false,
             language = language,
             isPro = true,
             isCloudSyncEnabled = true,
@@ -248,12 +248,14 @@ class LaborRepository(
         val currentWorkers = _workers.value
         val currentTransactions = _transactions.value
         val currentProfile = _userProfile.value
+        val generation = localBackupGeneration.incrementAndGet()
 
         // 1. Asynchronous debounced local file caching on Dispatchers.IO
         fileWriteJob?.cancel()
         fileWriteJob = repositoryScope.launch(Dispatchers.IO) {
             try {
                 delay(150L) // Quick debounce
+                if (generation != localBackupGeneration.get()) return@launch
                 if (context != null) {
                     com.example.data.remote.CompactCsvBackupService.saveBackupToCsvFile(context, currentWorkers, currentTransactions, currentProfile)
                 }
@@ -358,13 +360,14 @@ class LaborRepository(
         val verifiedBusiness = if (businessName.isNotBlank()) businessName.trim() else _userProfile.value.businessName.ifBlank { "My Business" }
         val verifiedMobile = if (mobile.isNotBlank()) mobile.trim() else _userProfile.value.mobile
 
+        val isSameAccount = _userProfile.value.email.equals(verifiedEmail, ignoreCase = true)
         _userProfile.value = _userProfile.value.copy(
             isLoggedIn = true,
             name = verifiedName,
             email = verifiedEmail,
             businessName = verifiedBusiness,
             mobile = verifiedMobile,
-            authProvider = "Google"
+            authProvider = "Google",
         )
         persistProfile()
 
@@ -547,7 +550,7 @@ class LaborRepository(
 
                 _userProfile.value = _userProfile.value.copy(
                     isLoggedIn = false,
-                    authProvider = "None"
+                    authProvider = "None",
                 )
                 persistProfile()
                 _workers.value = emptyList()
