@@ -24,15 +24,12 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Fix / Ensure Clean Gradle Wrapper
-        run: |
-          mkdir -p gradle/wrapper
-          curl -sLo gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/refs/heads/master/gradle/wrapper/gradle-wrapper.jar || true
-          chmod +x ./gradlew
+        with:
+          gradle-version: '8.6'
+          validate-wrappers: false
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Locate and Rename APK
         run: |
