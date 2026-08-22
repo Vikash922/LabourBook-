@@ -124,42 +124,47 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Loads data specific to this Google account. Automatically checks Cloud for existing backups.
+     * Loads data specific to this Google account asynchronously on background thread.
+     * Automatically checks Cloud for existing backups without blocking Main UI thread.
      */
     private fun loadUserDataForAccount(email: String) {
-        var dataLoaded = false
+        repositoryScope.launch(Dispatchers.IO) {
+            var dataLoaded = false
 
-        // 1. Try to load from user's local persistent cache & persistent documents
-        if (context != null) {
-            val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.remote.CompactCsvBackupService.MASTER_CSV_FILENAME}")
-            var localData: com.example.data.remote.BackupData? = null
-            if (localFile.exists()) {
-                val csvContent = localFile.readText()
-                val parsedResult = com.example.data.remote.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
-                if (parsedResult.isSuccess) {
-                    localData = parsedResult.getOrThrow()
+            // 1. Try to load from user's local persistent cache & persistent documents
+            if (context != null) {
+                val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.remote.CompactCsvBackupService.MASTER_CSV_FILENAME}")
+                var localData: com.example.data.remote.BackupData? = null
+                if (localFile.exists()) {
+                    try {
+                        val csvContent = localFile.readText()
+                        val parsedResult = com.example.data.remote.CompactCsvBackupService.parseCompleteBackupCsv(csvContent)
+                        if (parsedResult.isSuccess) {
+                            localData = parsedResult.getOrThrow()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error reading local cache: ${e.message}")
+                    }
+                }
+                if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
+                    _workers.value = sanitizeWorkers(localData.workers)
+                    _transactions.value = localData.transactions
+                    if (localData.userProfile != null) {
+                        _userProfile.value = _userProfile.value.copy(
+                            businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
+                            name = localData.userProfile.name.ifBlank { _userProfile.value.name },
+                            lastCloudBackupTime = localData.backupTimestamp
+                        )
+                    }
+                    _lastBackupStatus.value = "Last backup: ${localData.backupTimestamp} • ${localData.totalWorkers} workers restored"
+                    dataLoaded = true
                 }
             }
-            if (localData != null && (localData.totalWorkers > 0 || localData.totalTransactions > 0)) {
-                _workers.value = sanitizeWorkers(localData.workers)
-                _transactions.value = localData.transactions
-                if (localData.userProfile != null) {
-                    _userProfile.value = _userProfile.value.copy(
-                        businessName = localData.userProfile.businessName.ifBlank { _userProfile.value.businessName },
-                        name = localData.userProfile.name.ifBlank { _userProfile.value.name },
-                        lastCloudBackupTime = localData.backupTimestamp
-                    )
-                }
-                _lastBackupStatus.value = "Last backup: ${localData.backupTimestamp} • ${localData.totalWorkers} workers restored"
-                dataLoaded = true
-            }
-        }
 
-        // 2. Automatic Restore from Cloud:
-        // If local data is missing or empty (e.g. fresh installation / Clear App Data), fetch from Cloud & Firestore
-        if (!dataLoaded || (_workers.value.isEmpty() && _transactions.value.isEmpty())) {
-            _lastBackupStatus.value = "Restoring backup from Cloud..."
-            repositoryScope.launch {
+            // 2. Automatic Restore from Cloud:
+            // If local data is missing or empty (e.g. fresh installation / Clear App Data), fetch from Cloud & Firestore
+            if (!dataLoaded || (_workers.value.isEmpty() && _transactions.value.isEmpty())) {
+                _lastBackupStatus.value = "Restoring backup from Cloud..."
                 val cloudResult = if (context != null) {
                     com.example.data.remote.FirestoreSyncService.downloadDataFromCloud(context, _userProfile.value.email)
                 } else {

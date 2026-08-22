@@ -1630,15 +1630,17 @@ fun LaborAttendanceDayRow(
 ) {
     val isSunday = dayInfo.dow.equals("Sun", ignoreCase = true)
     val isSaturday = dayInfo.dow.equals("Sat", ignoreCase = true)
+    val rowShape = remember(isLast) {
+        if (isLast) RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp) else RoundedCornerShape(0.dp)
+    }
 
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        shape = if (isLast) RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp) else RoundedCornerShape(0.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-        shadowElevation = if (isLast) 2.dp else 0.dp
+            .padding(horizontal = 12.dp)
+            .background(Color.White, shape = rowShape)
+            .border(width = 1.dp, color = Color(0xFFCBD5E1), shape = rowShape)
+            .clip(rowShape)
     ) {
         Row(
             modifier = Modifier
@@ -1765,33 +1767,29 @@ fun LaborAttendanceDayRow(
                         }
                     }
 
-                    // OT Pill (Mauve Purple outline / rounded with shadow)
+                    // OT Pill (Mauve Purple outline / rounded)
                     val isOtActive = otHours > 0 || status == AttendanceStatus.OVERTIME
-                    Surface(
+                    Box(
                         modifier = Modifier
                             .height(30.dp)
                             .widthIn(min = 34.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onOvertimeClicked(dayInfo.day) },
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(
-                            width = 1.2.dp,
-                            color = Color(0xFF7E3B7D)
-                        ),
-                        color = if (isOtActive) Color(0xFF7E3B7D) else Color.White,
-                        shadowElevation = 1.dp
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (otHours > 0) "${if (otHours % 1.0 == 0.0) otHours.toInt() else otHours}h" else "OT",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isOtActive) Color.White else Color(0xFF7E3B7D)
+                            .border(
+                                width = 1.2.dp,
+                                color = Color(0xFF7E3B7D),
+                                shape = RoundedCornerShape(8.dp)
                             )
-                        }
+                            .background(if (isOtActive) Color(0xFF7E3B7D) else Color.White)
+                            .clickable { onOvertimeClicked(dayInfo.day) }
+                            .padding(horizontal = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (otHours > 0) "${if (otHours % 1.0 == 0.0) otHours.toInt() else otHours}h" else "OT",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isOtActive) Color.White else Color(0xFF7E3B7D)
+                        )
                     }
                 }
 
@@ -1927,31 +1925,27 @@ fun AttendancePillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    Box(
         modifier = modifier
             .height(30.dp)
             .widthIn(min = 30.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(
-            width = 1.2.dp,
-            color = activeColor
-        ),
-        color = if (isSelected) activeColor else Color.White,
-        shadowElevation = 1.dp
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 7.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isSelected) Color.White else activeColor
+            .border(
+                width = 1.2.dp,
+                color = activeColor,
+                shape = RoundedCornerShape(8.dp)
             )
-        }
+            .background(if (isSelected) activeColor else Color.White)
+            .clickable { onClick() }
+            .padding(horizontal = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isSelected) Color.White else activeColor
+        )
     }
 }
 
