@@ -378,8 +378,8 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
 
     fun triggerCloudSync() {
         viewModelScope.launch {
-            val result = CloudSyncService.syncDataToCloud(workers.value.size, transactions.value.size)
-            _syncMessage.value = result.getOrNull() ?: "Cloud synchronization complete."
+            repository.backupToCloud()
+            CloudSyncService.syncDataToCloud(workers.value.size, transactions.value.size)
         }
     }
 

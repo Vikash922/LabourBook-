@@ -57,6 +57,8 @@ import com.example.domain.model.CashTransaction
 import com.example.domain.model.TransactionType
 import com.example.presentation.viewmodel.LaborViewModel
 import com.example.presentation.viewmodel.Screen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -138,24 +140,31 @@ fun CashBookReportScreen(
         endCalState.get(Calendar.DAY_OF_MONTH)
     )
 
-    // Filter transactions within selected date range
-    val reportTransactions = remember(transactions, startCalState, endCalState) {
+    // Filter transactions within selected date range asynchronously on Dispatchers.Default
+    var reportTransactions by remember { mutableStateOf<List<CashTransaction>>(emptyList()) }
+
+    LaunchedEffect(transactions, startCalState, endCalState) {
         val startMillis = startCalState.timeInMillis
         val endMillis = endCalState.timeInMillis
+        val currentTxList = transactions
 
-        transactions.filter { tx ->
-            if (tx.amount <= 0.0) return@filter false
-            val txMillis = if (tx.fullDate.isNotBlank()) {
-                try {
-                    fullDateFormat.parse(tx.fullDate)?.time ?: tx.timestamp
-                } catch (e: Exception) {
+        val filtered = withContext(Dispatchers.Default) {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            currentTxList.filter { tx ->
+                if (tx.amount <= 0.0) return@filter false
+                val txMillis = if (tx.fullDate.isNotBlank()) {
+                    try {
+                        sdf.parse(tx.fullDate)?.time ?: tx.timestamp
+                    } catch (e: Exception) {
+                        tx.timestamp
+                    }
+                } else {
                     tx.timestamp
                 }
-            } else {
-                tx.timestamp
-            }
-            txMillis in startMillis..endMillis
-        }.sortedBy { it.fullDate.ifBlank { it.timestamp.toString() } }
+                txMillis in startMillis..endMillis
+            }.sortedBy { it.fullDate.ifBlank { it.timestamp.toString() } }
+        }
+        reportTransactions = filtered
     }
 
     Scaffold(

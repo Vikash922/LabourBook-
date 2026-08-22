@@ -1,5 +1,6 @@
 package com.example.domain.model
 
+import androidx.compose.runtime.Stable
 import com.example.core.util.LaborCalendarHelper
 import java.util.Locale
 
@@ -30,6 +31,7 @@ enum class PaymentMethod {
     ONLINE
 }
 
+@Stable
 data class DailyAttendance(
     val dayNumber: Int = 1,
     val dayOfWeek: String = "Mon", // "Mon", "Tue", etc.
@@ -42,6 +44,7 @@ data class DailyAttendance(
     val paymentMethod: PaymentMethod = PaymentMethod.ONLINE
 )
 
+@Stable
 data class WorkerMonthStats(
     val presentCount: Double = 0.0,
     val absentCount: Double = 0.0,
@@ -55,6 +58,7 @@ data class WorkerMonthStats(
     val balance: Double = 0.0
 )
 
+@Stable
 data class LaborWorker(
     val id: String = "",
     val name: String = "",
@@ -169,6 +173,7 @@ data class LaborWorker(
         get() = getEstimatedEarnings("Aug 2026")
 }
 
+@Stable
 data class CashTransaction(
     val id: String = "",
     val dateDisplay: String = "", // e.g. "15 Sat"
@@ -180,6 +185,7 @@ data class CashTransaction(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Stable
 data class SavedContact(
     val id: String = "",
     val name: String = "",
@@ -188,6 +194,7 @@ data class SavedContact(
     val initial: String = name.take(1).uppercase()
 )
 
+@Stable
 data class UserProfile(
     val name: String = "Manager",
     val businessName: String = "My Business",

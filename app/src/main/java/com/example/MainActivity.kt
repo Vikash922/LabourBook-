@@ -1,11 +1,16 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,6 +57,7 @@ import com.example.presentation.screens.CashBookReportScreen
 import com.example.presentation.screens.CashBookScreen
 import com.example.presentation.screens.LaborDetailScreen
 import com.example.presentation.screens.LaborHomeScreen
+import com.example.core.util.AttendanceReminderHelper
 import com.example.presentation.screens.LaborReportScreen
 import com.example.presentation.screens.LoginScreen
 import com.example.presentation.screens.SettingsScreen
@@ -66,6 +72,14 @@ import com.google.firebase.analytics.FirebaseAnalytics.getInstance
 class MainActivity : ComponentActivity() {
     private val viewModel: LaborViewModel by viewModels()
     private lateinit var firebaseAnalytics: FirebaseAnalytics
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
+
+    private val requestNotificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                AttendanceReminderHelper.scheduleDailyReminders(this)
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,8 +88,19 @@ class MainActivity : ComponentActivity() {
         // Initialize Firebase Analytics
         firebaseAnalytics = getInstance(this)
         
+        // Initialize notification channel and schedule daily attendance reminders
+        AttendanceReminderHelper.createNotificationChannel(this)
+        AttendanceReminderHelper.scheduleDailyReminders(this)
+
+        // Request POST_NOTIFICATIONS runtime permission for Android 13+ (API 33+)
+        requestNotificationPermission()
+
         // Check if Firebase user is authenticated on startup and navigate to dashboard
         viewModel.checkFirebaseAutoLogin(isStartup = true)
+
+        // Register network callback for automatic online auto-sync when connection is restored
+        registerNetworkObserver()
+
         setContent {
             LaborbookTheme {
                 LaborbookApp(viewModel = viewModel)
@@ -83,9 +108,62 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    private fun registerNetworkObserver() {
+        try {
+            val connectivityManager = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            if (connectivityManager != null) {
+                networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: android.net.Network) {
+                        super.onAvailable(network)
+                        // Restored connection! Trigger cloud backup if user is logged in
+                        if (viewModel.userProfile.value.isLoggedIn) {
+                            runOnUiThread {
+                                viewModel.triggerCloudSync()
+                            }
+                        }
+                    }
+                }
+                val request = android.net.NetworkRequest.Builder()
+                    .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                connectivityManager.registerNetworkCallback(request, networkCallback!!)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to register network observer: ${e.message}")
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         viewModel.checkFirebaseAutoLogin(isStartup = false)
+        // Also trigger sync on resume if connected
+        if (viewModel.userProfile.value.isLoggedIn) {
+            viewModel.triggerCloudSync()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            networkCallback?.let {
+                val connectivityManager = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+                connectivityManager?.unregisterNetworkCallback(it)
+            }
+        } catch (e: Exception) {
+            // Ignored
+        }
     }
 }
 

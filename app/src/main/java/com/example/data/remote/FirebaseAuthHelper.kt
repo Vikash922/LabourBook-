@@ -17,6 +17,8 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.tasks.await
 
+import com.google.firebase.FirebaseOptions
+
 data class AuthUser(
     val uid: String,
     val displayName: String,
@@ -48,7 +50,40 @@ object FirebaseAuthHelper {
                     // Ignored
                 }
             }
+            if (FirebaseApp.getApps(context).isEmpty()) {
+                try {
+                    val options = FirebaseOptions.Builder()
+                        .setApplicationId("1:1027179208222:android:ac3483799fc5ed6c6a580f")
+                        .setApiKey("AIzaSyAMeOVp4gfkmBrOv_uMfOUuokXHQLFwFZY")
+                        .setProjectId("laborbook-4c47e")
+                        .setGcmSenderId("1027179208222")
+                        .setStorageBucket("laborbook-4c47e.firebasestorage.app")
+                        .build()
+                    FirebaseApp.initializeApp(context.applicationContext, options)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to initialize Firebase with options: ${e.message}")
+                }
+            }
             FirebaseApp.getApps(context).isNotEmpty()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun isOnline(context: Context): Boolean {
+        return try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            if (connectivityManager != null) {
+                val activeNetwork = connectivityManager.activeNetwork
+                if (activeNetwork != null) {
+                    val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+                    if (capabilities != null) {
+                        capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+                                capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                                capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+                    } else false
+                } else false
+            } else false
         } catch (e: Exception) {
             false
         }
@@ -166,15 +201,17 @@ object FirebaseAuthHelper {
     /**
      * Signs in with Email and Password using Firebase Auth, with seamless local & cloud account recovery.
      */
+    /**
+     * Signs in with Email and Password using Firebase Auth strictly. No local-only account fallback.
+     */
     suspend fun signInWithEmail(context: Context, email: String, pass: String): Result<AuthUser> {
         return try {
             val cleanEmail = email.trim().lowercase()
             val cleanPass = pass.trim()
             if (cleanEmail.isBlank() || cleanPass.isBlank()) return Result.failure(Exception("Email and password cannot be empty."))
+            
             val localName = cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-
             val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            val savedPass = localPrefs.getString("pass_$cleanEmail", null)
             val savedName = localPrefs.getString("name_$cleanEmail", localName) ?: "User"
 
             if (isFirebaseInitialized(context)) {
@@ -189,54 +226,28 @@ object FirebaseAuthHelper {
                         )
                         saveLocalAccount(context, cleanEmail, cleanPass, authUser.displayName)
                         return Result.success(authUser)
+                    } else {
+                        return Result.failure(Exception("Failed to retrieve user profile from server."))
                     }
                 } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
                     return Result.failure(Exception("Incorrect password for $cleanEmail. Please enter the correct password."))
                 } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
-                    if (savedPass != null && savedPass != cleanPass) {
-                        return Result.failure(Exception("Incorrect password for this email."))
+                    return Result.failure(Exception("Account does not exist for $cleanEmail. Please select 'Create Account' to register first."))
+                } catch (e: com.google.firebase.auth.FirebaseAuthException) {
+                    val errorCode = e.errorCode
+                    Log.e(TAG, "Firebase Auth Exception code: $errorCode, message: ${e.message}")
+                    if (errorCode == "ERROR_USER_NOT_FOUND" || errorCode == "ERROR_INVALID_USER" || errorCode == "ERROR_USER_DISABLED") {
+                        return Result.failure(Exception("Account does not exist for $cleanEmail. Please select 'Create Account' to register first."))
+                    } else if (errorCode == "ERROR_WRONG_PASSWORD") {
+                        return Result.failure(Exception("Incorrect password for $cleanEmail. Please enter the correct password."))
                     }
-                    // Email not in Firebase Auth, auto-provision to link data seamlessly
-                    try {
-                        val createResult = FirebaseAuth.getInstance().createUserWithEmailAndPassword(cleanEmail, cleanPass).await()
-                        val newUser = createResult.user
-                        if (newUser != null) {
-                            val authUser = AuthUser(
-                                uid = newUser.uid,
-                                displayName = newUser.displayName ?: savedName,
-                                email = newUser.email ?: cleanEmail
-                            )
-                            saveLocalAccount(context, cleanEmail, cleanPass, authUser.displayName)
-                            return Result.success(authUser)
-                        }
-                    } catch (ex: Exception) {
-                        Log.w(TAG, "Auto-provisioning failed: ${ex.message}")
-                    }
-                    saveLocalAccount(context, cleanEmail, cleanPass, savedName)
-                    return Result.success(AuthUser(uid = cleanEmail, displayName = savedName, email = cleanEmail))
+                    return Result.failure(Exception("Authentication error: ${e.localizedMessage}"))
                 } catch (e: Exception) {
-                    Log.w(TAG, "Firebase signInWithEmail notice: ${e.message}. Fallback authenticating...")
-                    if (savedPass != null) {
-                        if (savedPass == cleanPass) {
-                            return Result.success(AuthUser(uid = cleanEmail, displayName = savedName, email = cleanEmail))
-                        } else {
-                            return Result.failure(Exception("Incorrect password for this email."))
-                        }
-                    }
-                    return Result.failure(Exception("Incorrect password or authentication error. Please verify your credentials."))
-                }
-            }
-
-            // Local Account verification fallback
-            if (savedPass != null) {
-                if (savedPass == cleanPass) {
-                    Result.success(AuthUser(uid = cleanEmail, displayName = savedName, email = cleanEmail))
-                } else {
-                    Result.failure(Exception("Incorrect password for this email."))
+                    Log.e(TAG, "Firebase Sign In generic exception: ${e.message}", e)
+                    return Result.failure(Exception("Could not authenticate with server. Error: ${e.localizedMessage}"))
                 }
             } else {
-                saveLocalAccount(context, cleanEmail, cleanPass, savedName)
-                Result.success(AuthUser(uid = cleanEmail, displayName = savedName, email = cleanEmail))
+                return Result.failure(Exception("Firebase Authentication service is not initialized on this device."))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -244,7 +255,7 @@ object FirebaseAuthHelper {
     }
 
     /**
-     * Registers a new account with Email and Password using Firebase Auth, with seamless login if account exists.
+     * Registers a new account with Email and Password using Firebase Auth strictly. No local-only mock account creation.
      */
     suspend fun signUpWithEmail(context: Context, email: String, pass: String, displayName: String = ""): Result<AuthUser> {
         return try {
@@ -253,19 +264,6 @@ object FirebaseAuthHelper {
             if (cleanEmail.isBlank() || cleanPass.isBlank()) return Result.failure(Exception("Email and password cannot be empty."))
             if (cleanPass.length < 6) return Result.failure(Exception("Password must be at least 6 characters long."))
             val cleanName = if (displayName.isNotBlank()) displayName else cleanEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-
-            val localPrefs = context.getSharedPreferences("laborbook_auth_accounts", Context.MODE_PRIVATE)
-            val savedPass = localPrefs.getString("pass_$cleanEmail", null)
-            val savedName = localPrefs.getString("name_$cleanEmail", cleanName) ?: cleanName
-
-            // Check if account already exists locally
-            if (savedPass != null) {
-                if (savedPass != cleanPass) {
-                    return Result.failure(Exception("Account already exists with $cleanEmail. Incorrect password entered. Please switch to Sign In."))
-                } else {
-                    return Result.success(AuthUser(uid = cleanEmail, displayName = savedName, email = cleanEmail))
-                }
-            }
 
             if (isFirebaseInitialized(context)) {
                 try {
@@ -277,7 +275,9 @@ object FirebaseAuthHelper {
                                 .setDisplayName(cleanName)
                                 .build()
                             fbUser.updateProfile(profileUpdates).await()
-                        } catch (_: Exception) {}
+                        } catch (pe: Exception) {
+                            Log.w(TAG, "Failed to update Firebase profile display name: ${pe.message}")
+                        }
 
                         val authUser = AuthUser(
                             uid = fbUser.uid,
@@ -286,36 +286,22 @@ object FirebaseAuthHelper {
                         )
                         saveLocalAccount(context, cleanEmail, cleanPass, cleanName)
                         return Result.success(authUser)
+                    } else {
+                        return Result.failure(Exception("Failed to register account on server."))
                     }
                 } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
-                    Log.i(TAG, "Account already exists in Firebase Auth. Attempting seamless sign-in...")
-                    try {
-                        val signInResult = FirebaseAuth.getInstance().signInWithEmailAndPassword(cleanEmail, cleanPass).await()
-                        val fbUser = signInResult.user
-                        if (fbUser != null) {
-                            val authUser = AuthUser(
-                                uid = fbUser.uid,
-                                displayName = fbUser.displayName ?: cleanName,
-                                email = fbUser.email ?: cleanEmail
-                            )
-                            saveLocalAccount(context, cleanEmail, cleanPass, authUser.displayName)
-                            return Result.success(authUser)
-                        }
-                    } catch (signInEx: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
-                        return Result.failure(Exception("Account already exists with $cleanEmail. Incorrect password entered. Please switch to Sign In."))
-                    } catch (signInEx: Exception) {
-                        return Result.failure(Exception("Account already exists with $cleanEmail. Incorrect password entered. Please switch to Sign In."))
-                    }
+                    return Result.failure(Exception("An account already exists with $cleanEmail. Please switch to 'Sign In' instead."))
                 } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
                     return Result.failure(Exception("Password is too weak. Please use at least 6 characters."))
+                } catch (e: com.google.firebase.auth.FirebaseAuthException) {
+                    return Result.failure(Exception("Registration failed: ${e.localizedMessage}"))
                 } catch (e: Exception) {
-                    Log.w(TAG, "Firebase signUpWithEmail notice: ${e.message}. Registering local account...")
+                    Log.e(TAG, "Firebase Sign Up generic exception: ${e.message}", e)
+                    return Result.failure(Exception("Could not connect to registration server. Please try again later."))
                 }
+            } else {
+                return Result.failure(Exception("Firebase Authentication service is not initialized on this device."))
             }
-
-            // Save to local secure preferences
-            saveLocalAccount(context, cleanEmail, cleanPass, cleanName)
-            Result.success(AuthUser(uid = cleanEmail, displayName = cleanName, email = cleanEmail))
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -111,6 +111,7 @@ fun LoginScreen(
     var emailErrorMessage by remember { mutableStateOf("") }
 
     var isSigningIn by remember { mutableStateOf(false) }
+    var showInternetDialog by remember { mutableStateOf(false) }
 
     val isFirebaseAvailable = remember { FirebaseAuthHelper.isFirebaseInitialized(context) }
 
@@ -390,6 +391,12 @@ fun LoginScreen(
                                 return@Button
                             }
 
+                            // REQUIRE INTERNET CONNECTION FOR SIGN IN & CREATE ACCOUNT
+                            if (!FirebaseAuthHelper.isOnline(context)) {
+                                showInternetDialog = true
+                                return@Button
+                            }
+
                             isSigningIn = true
                             if (authMode == AuthMode.SIGN_IN) {
                                 viewModel.signInWithEmail(
@@ -476,6 +483,13 @@ fun LoginScreen(
                     OutlinedButton(
                         onClick = {
                             focusManager.clearFocus()
+                            
+                            // REQUIRE INTERNET CONNECTION FOR GOOGLE SIGN IN
+                            if (!FirebaseAuthHelper.isOnline(context)) {
+                                showInternetDialog = true
+                                return@OutlinedButton
+                            }
+
                             isSigningIn = true
                             viewModel.signInWithGoogleCredentialManager(
                                 context = context,
@@ -526,29 +540,6 @@ fun LoginScreen(
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Guest / Local Mode Text Button
-                    TextButton(
-                        onClick = {
-                            viewModel.loginWithGoogle(
-                                name = "Contractor",
-                                email = "guest@laborbook.local",
-                                businessName = businessNameInput.ifBlank { "My Business" },
-                                mobile = mobileInput
-                            )
-                        },
-                        modifier = Modifier.testTag("guest_login_button")
-                    ) {
-                        Text(
-                            text = "Skip and Continue as Guest",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = deepBlueBackground,
-                            fontFamily = appFontFamily
-                        )
-                    }
                 }
             }
 
@@ -576,6 +567,49 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        if (showInternetDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showInternetDialog = false },
+                icon = {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Info,
+                        contentDescription = "No Internet Connection",
+                        tint = Color(0xFFE11D48),
+                        modifier = Modifier.size(36.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "No Internet Connection",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        fontFamily = appFontFamily,
+                        color = Color(0xFF0F172A)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "An active internet connection is required to sign in, create an account, or connect with Google.\n\nPlease turn on Wi-Fi or Cellular Data and try again.",
+                        fontSize = 14.sp,
+                        fontFamily = appFontFamily,
+                        color = Color(0xFF475569),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { showInternetDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = deepBlueBackground),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("OK", color = Color.White, fontFamily = appFontFamily, fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }
