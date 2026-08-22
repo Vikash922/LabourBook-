@@ -588,9 +588,13 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
             _isLoggingOut.value = true
             val result = repository.backupAndLogout()
             _isLoggingOut.value = false
-            _currentScreen.value = Screen.Login
-            _selectedTabIndex.value = 0
-            onComplete(true, result.getOrNull() ?: "Backed up to Cloud & Logged out.")
+            if (result.isSuccess) {
+                _currentScreen.value = Screen.Login
+                _selectedTabIndex.value = 0
+                onComplete(true, result.getOrNull() ?: "Backed up to Cloud & Logged out.")
+            } else {
+                onComplete(false, result.exceptionOrNull()?.message ?: "Cloud backup failed. Your data is still available on this device.")
+            }
         }
     }
 

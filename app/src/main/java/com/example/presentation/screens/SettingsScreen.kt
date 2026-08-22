@@ -428,7 +428,11 @@ fun SettingsScreen(
                         isLoggingOut = true
                         viewModel.logoutWithCloudBackup { success, msg ->
                             isLoggingOut = false
-                            showLogoutConfirmDialog = false
+                            if (success) {
+                                showLogoutConfirmDialog = false
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
                         }
                     },
                     enabled = !isLoggingOut,

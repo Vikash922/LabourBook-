@@ -380,17 +380,21 @@ object FirebaseAuthHelper {
     /**
      * Signs out from Firebase Authentication and clears credentials.
      */
-    suspend fun signOut(context: Context) {
+    suspend fun signOut(context: Context): Result<Unit> {
+        var failure: Exception? = null
         try {
             FirebaseAuth.getInstance().signOut()
         } catch (e: Exception) {
             Log.w(TAG, "Firebase sign out notice: ${e.message}")
+            failure = e
         }
         try {
             val credentialManager = CredentialManager.create(context)
             credentialManager.clearCredentialState(androidx.credentials.ClearCredentialStateRequest())
         } catch (e: Exception) {
             Log.w(TAG, "CredentialManager clear state notice: ${e.message}")
+            if (failure == null) failure = e
         }
+        return failure?.let { Result.failure(it) } ?: Result.success(Unit)
     }
 }

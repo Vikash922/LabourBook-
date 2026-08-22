@@ -30,7 +30,15 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class LaborRepository(private val context: Context? = null) {
+class LaborRepository(
+    private val context: Context? = null,
+    private val cloudSync: suspend (UserProfile, List<LaborWorker>, List<CashTransaction>, Context?) -> Result<String> =
+        { profile, workers, transactions, syncContext ->
+            com.example.data.remote.FirestoreSyncService.syncDataToCloud(profile, workers, transactions, syncContext)
+        },
+    private val signOut: suspend (Context) -> Result<Unit> =
+        { signOutContext -> com.example.data.remote.FirebaseAuthHelper.signOut(signOutContext) }
+) {
     companion object {
         private const val TAG = "LaborRepository"
     }
@@ -500,38 +508,57 @@ class LaborRepository(private val context: Context? = null) {
      * Creates a guaranteed Cloud backup before logging out.
      */
     suspend fun backupAndLogout(): Result<String> {
-        return try {
-            if (_userProfile.value.email.isNotBlank()) {
+        return withContext(Dispatchers.IO) {
+            try {
+                fileWriteJob?.cancel()
                 _lastBackupStatus.value = "Backing up before logout..."
-                com.example.data.remote.FirestoreSyncService.syncDataToCloud(_userProfile.value, _workers.value, _transactions.value, context)
+
+                if (context == null) {
+                    return@withContext Result.failure(Exception("Local backup is unavailable on this device."))
+                }
+
+                try {
+                    com.example.data.remote.CompactCsvBackupService.saveBackupToCsvFile(
+                        context,
+                        _workers.value,
+                        _transactions.value,
+                        _userProfile.value
+                    )
+                } catch (_: Exception) {
+                    _lastBackupStatus.value = "Local backup failed"
+                    return@withContext Result.failure(Exception("Local backup could not be saved. Your data is still available on this device."))
+                }
+
+                val syncResult = if (_userProfile.value.email.isNotBlank()) {
+                    cloudSync(_userProfile.value, _workers.value, _transactions.value, context)
+                } else {
+                    Result.failure(Exception("Cloud backup requires a signed-in account."))
+                }
+                if (syncResult.isFailure) {
+                    _lastBackupStatus.value = "Cloud backup failed"
+                    return@withContext Result.failure(Exception("Cloud backup failed. Your data is still available on this device. Please try again."))
+                }
+
+                val signOutResult = signOut(context)
+                if (signOutResult.isFailure) {
+                    _lastBackupStatus.value = "Sign out failed"
+                    return@withContext Result.failure(Exception("Cloud backup completed, but sign out failed. Your data is still available on this device."))
+                }
+
+                _userProfile.value = _userProfile.value.copy(
+                    isLoggedIn = false,
+                    authProvider = "None"
+                )
+                persistProfile()
+                _workers.value = emptyList()
+                _transactions.value = emptyList()
+                _lastBackupStatus.value = "Logged out"
+
+                Result.success("Backup to Cloud complete. Logged out safely.")
+            } catch (_: Exception) {
+                _lastBackupStatus.value = "Cloud backup failed"
+                Result.failure(Exception("Cloud backup failed. Your data is still available on this device. Please try again."))
             }
-
-            // Mark session as logged out
-            _userProfile.value = _userProfile.value.copy(
-                isLoggedIn = false,
-                authProvider = "None"
-            )
-            persistProfile()
-
-            if (context != null) {
-                com.example.data.remote.FirebaseAuthHelper.signOut(context)
-            }
-
-            // Reset in-memory states
-            _workers.value = emptyList()
-            _transactions.value = emptyList()
-            _lastBackupStatus.value = "Logged out"
-
-            Result.success("Backup to Cloud complete. Logged out safely.")
-        } catch (e: Exception) {
-            _userProfile.value = _userProfile.value.copy(
-                isLoggedIn = false,
-                authProvider = "None"
-            )
-            persistProfile()
-            _workers.value = emptyList()
-            _transactions.value = emptyList()
-            Result.success("Logged out successfully.")
         }
     }
 
