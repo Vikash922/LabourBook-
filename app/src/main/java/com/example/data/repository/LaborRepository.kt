@@ -90,7 +90,7 @@ class LaborRepository(
     private fun loadActiveSession() {
         if (prefs == null) return
 
-        val isLoggedIn = prefs.getBoolean("is_logged_in", false)
+        val storedIsLoggedIn = prefs.getBoolean("is_logged_in", false)
         val name = prefs.getString("user_name", "") ?: ""
         val businessName = prefs.getString("business_name", "My Business") ?: "My Business"
         val mobile = prefs.getString("user_mobile", "") ?: ""
@@ -99,6 +99,8 @@ class LaborRepository(
         val authProvider = prefs.getString("auth_provider", "None") ?: "None"
         val lastCloudTime = prefs.getString("last_cloud_time", "Never") ?: "Never"
         val lastCloudFile = prefs.getString("last_cloud_file", "") ?: ""
+        val firebaseUser = context?.let { com.example.data.remote.FirebaseAuthHelper.getCurrentFirebaseUser(it) }
+        val isLoggedIn = storedIsLoggedIn && firebaseUser?.email.equals(email, ignoreCase = true)
 
         val profile = UserProfile(
             name = name,
@@ -118,8 +120,6 @@ class LaborRepository(
 
         if (isLoggedIn && email.isNotBlank()) {
             loadUserDataForAccount(email)
-        } else {
-            loadUserDataForAccount(email.ifBlank { "local_user" })
         }
     }
 
@@ -139,7 +139,7 @@ class LaborRepository(
             var dataLoaded = false
 
             // 1. Try to load from user's local persistent cache & persistent documents
-            if (context != null) {
+            if (context != null && _userProfile.value.isLoggedIn) {
                 val localFile = java.io.File(context.filesDir, "csv_backups/${com.example.data.remote.CompactCsvBackupService.MASTER_CSV_FILENAME}")
                 var localData: com.example.data.remote.BackupData? = null
                 if (localFile.exists()) {

@@ -1482,7 +1482,7 @@ fun LaborDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if ((dayRecord?.overtimeHours ?: 0.0) > 0) "${if (dayRecord!!.overtimeHours % 1.0 == 0.0) dayRecord.overtimeHours.toInt() else dayRecord.overtimeHours}h" else "OT",
+                                    text = "OT",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isOt) Color.White else Color(0xFF7E3B7D)
@@ -1807,7 +1807,7 @@ fun LaborAttendanceDayRow(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (otHours > 0) "${if (otHours % 1.0 == 0.0) otHours.toInt() else otHours}h" else "OT",
+                            text = "OT",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (isOtActive) Color.White else Color(0xFF7E3B7D)
@@ -2048,9 +2048,9 @@ fun OvertimeNumberWheel(
     modifier: Modifier = Modifier,
     itemHeight: androidx.compose.ui.unit.Dp = 44.dp
 ) {
-    val totalLoops = 1000
+    val totalLoops = 3
     val totalItems = count * totalLoops
-    val initialIndex = (totalLoops / 2) * count + (initialValue % count)
+    val initialIndex = (totalLoops / 2) * count + initialValue.coerceIn(0, count - 1)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (initialIndex - 1).coerceAtLeast(0))
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
