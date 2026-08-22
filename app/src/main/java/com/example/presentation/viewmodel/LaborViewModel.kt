@@ -133,7 +133,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     private val _newLaborPhone = MutableStateFlow("")
     val newLaborPhone: StateFlow<String> = _newLaborPhone.asStateFlow()
 
-    private val _newLaborWage = MutableStateFlow("800")
+    private val _newLaborWage = MutableStateFlow("")
     val newLaborWage: StateFlow<String> = _newLaborWage.asStateFlow()
 
     // Selected Transaction for View / Edit Bottom Sheets
@@ -167,7 +167,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val filteredTransactions = combine(transactions, transactionSearchQuery) { list, query ->
-        val validList = list.filter { it.amount > 0.0 }
+        val validList = list.filter { it.amount > 0.0 }.sortedWith(
+            compareByDescending<CashTransaction> { it.fullDate.ifBlank { "0000-00-00" } }
+                .thenByDescending { it.timestamp }
+        )
         if (query.isBlank()) validList
         else validList.filter { it.notes.contains(query, ignoreCase = true) || it.dateDisplay.contains(query, ignoreCase = true) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -223,20 +226,21 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     fun addLaborFromForm(): Boolean {
         val name = _newLaborName.value.trim()
         val phone = _newLaborPhone.value.trim()
-        if (name.isBlank() || phone.isBlank()) return false
+        val wage = _newLaborWage.value.toDoubleOrNull() ?: 0.0
+        if (name.isBlank() || phone.isBlank() || wage <= 0.0) return false
 
-        val wage = _newLaborWage.value.toDoubleOrNull() ?: 800.0
         repository.addWorker(name, phone, wage)
 
         // Reset form
         _newLaborName.value = ""
         _newLaborPhone.value = ""
+        _newLaborWage.value = ""
         _isAddStaffExpanded.value = false
         navigateTo(Screen.LaborHome)
         return true
     }
 
-    fun addLaborFromContact(contact: SavedContact, wage: Double = 800.0) {
+    fun addLaborFromContact(contact: SavedContact, wage: Double = 0.0) {
         repository.addWorker(
             name = contact.name,
             phone = contact.phoneNumber,

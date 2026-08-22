@@ -83,13 +83,9 @@ fun LaborHomeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = LaborBackground,
+        containerColor = Color(0xFFF1F5F9),
         topBar = {
-            LaborbookHomeTopBar(
-                onShareClick = {
-                    viewModel.shareBatchRoster()
-                }
-            )
+            LaborbookHomeTopBar()
         },
         floatingActionButton = {
             // 'ADD LABOR' Blue Filled Pill Button with person-add icon (spec 2.1)

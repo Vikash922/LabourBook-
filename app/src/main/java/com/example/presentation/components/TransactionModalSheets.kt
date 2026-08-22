@@ -326,6 +326,14 @@ fun TransactionEditBottomSheet(
     )
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val amountFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        try {
+            amountFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
 
     ModalBottomSheet(
         onDismissRequest = onClose,
@@ -435,6 +443,7 @@ fun TransactionEditBottomSheet(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .focusRequester(amountFocusRequester)
                             .testTag("tx_amount_input"),
                         decorationBox = { innerTextField ->
                             if (amountText.isEmpty()) {

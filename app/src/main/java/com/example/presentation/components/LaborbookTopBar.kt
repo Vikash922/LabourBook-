@@ -31,55 +31,54 @@ import com.example.presentation.theme.LaborBlue
 
 @Composable
 fun LaborbookHomeTopBar(
-    onShareClick: () -> Unit,
+    onShareClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = LaborBlue,
-        shadowElevation = 0.dp
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // App Title Logo
+            // App Title Logo (Larger, prominent)
             Text(
                 text = "Laborbook",
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = 25.sp,
                 fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.5.sp,
                 modifier = Modifier.testTag("app_logo_title")
             )
 
-            // 'Share' Pill
+            // 'Share' Visual Pill (Display only, no function / no PDF)
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Transparent,
                 border = BorderStroke(1.dp, Color.White),
-                modifier = Modifier
-                    .clickable { onShareClick() }
-                    .testTag("top_share_button")
+                modifier = Modifier.testTag("top_share_button")
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Share",
                         tint = Color.White,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Share",
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

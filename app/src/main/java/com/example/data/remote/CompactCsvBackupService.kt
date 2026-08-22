@@ -192,7 +192,7 @@ object CompactCsvBackupService {
                             val id = tokens.getOrElse(0) { UUID.randomUUID().toString() }
                             val name = tokens.getOrElse(1) { "Worker" }
                             val phone = tokens.getOrElse(2) { "" }
-                            val wage = tokens.getOrElse(3) { "800.0" }.toDoubleOrNull() ?: 800.0
+                            val wage = tokens.getOrElse(3) { "0.0" }.toDoubleOrNull() ?: 0.0
                             val color = tokens.getOrElse(4) { "#1656D6" }
                             val createdAt = tokens.getOrElse(5) { System.currentTimeMillis().toString() }.toLongOrNull() ?: System.currentTimeMillis()
 

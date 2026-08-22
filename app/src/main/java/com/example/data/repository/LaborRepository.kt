@@ -562,7 +562,7 @@ class LaborRepository(private val context: Context? = null) {
     fun addWorker(
         name: String,
         phone: String,
-        wage: Double = 800.0
+        wage: Double = 0.0
     ): LaborWorker {
         val colors = listOf("#1656D6", "#D8B4FE", "#A7F3D0", "#FFD1B3", "#FBCFE8", "#BAE6FD")
         val color = colors[(_workers.value.size) % colors.size]

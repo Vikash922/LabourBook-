@@ -162,7 +162,10 @@ fun CashBookReportScreen(
                     tx.timestamp
                 }
                 txMillis in startMillis..endMillis
-            }.sortedBy { it.fullDate.ifBlank { it.timestamp.toString() } }
+            }.sortedWith(
+                compareByDescending<CashTransaction> { it.fullDate.ifBlank { "0000-00-00" } }
+                    .thenByDescending { it.timestamp }
+            )
         }
         reportTransactions = filtered
     }
@@ -357,46 +360,47 @@ fun CashBookReportScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF9FAFB))
+                                .background(Color(0xFFFAFAFA))
                                 .height(IntrinsicSize.Min),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Date",
-                                fontSize = 12.5.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier
-                                    .weight(0.22f)
-                                    .padding(vertical = 8.dp)
+                                    .weight(0.20f)
+                                    .padding(vertical = 10.dp)
                             )
-                            VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                            VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
                             Text(
                                 text = "Notes",
-                                fontSize = 12.5.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827),
                                 modifier = Modifier
-                                    .weight(0.48f)
-                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    .weight(0.44f)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                textAlign = TextAlign.Start
                             )
-                            VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                            VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
                             Text(
                                 text = "₹ Amount",
-                                fontSize = 12.5.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827),
-                                textAlign = TextAlign.End,
+                                textAlign = TextAlign.Start,
                                 modifier = Modifier
-                                    .weight(0.30f)
-                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                                    .weight(0.36f)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
                             )
                         }
 
-                        HorizontalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp)
+                        HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
 
                         // Table Data Rows
                         if (reportTransactions.isEmpty()) {
@@ -426,20 +430,21 @@ fun CashBookReportScreen(
                                         // Column 1: Date
                                         Column(
                                             modifier = Modifier
-                                                .weight(0.22f)
-                                                .padding(vertical = 6.dp),
+                                                .weight(0.20f)
+                                                .padding(vertical = 8.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
                                                 text = dayNum,
-                                                fontSize = 13.sp,
+                                                fontSize = 14.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF111827)
                                             )
                                             Text(
                                                 text = dayName,
-                                                fontSize = 10.sp,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Normal,
                                                 color = Color(0xFF6B7280)
                                             )
                                         }
@@ -449,14 +454,14 @@ fun CashBookReportScreen(
                                         // Column 2: Notes
                                         Box(
                                             modifier = Modifier
-                                                .weight(0.48f)
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                .weight(0.44f)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
                                             contentAlignment = Alignment.CenterStart
                                         ) {
                                             Text(
                                                 text = tx.notes.ifBlank { "-" },
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Normal,
                                                 color = Color(0xFF111827),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
@@ -465,12 +470,12 @@ fun CashBookReportScreen(
 
                                         VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
-                                        // Column 3: Amount
+                                        // Column 3: Amount (Left aligned in its column)
                                         Box(
                                             modifier = Modifier
-                                                .weight(0.30f)
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            contentAlignment = Alignment.CenterEnd
+                                                .weight(0.36f)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            contentAlignment = Alignment.CenterStart
                                         ) {
                                             val formattedAmount = if (tx.amount % 1.0 == 0.0) {
                                                 "${tx.amount.toInt()}.0"
@@ -481,7 +486,7 @@ fun CashBookReportScreen(
 
                                             Text(
                                                 text = "₹ $formattedAmount",
-                                                fontSize = 13.sp,
+                                                fontSize = 14.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isCashIn) Color(0xFF16A34A) else Color(0xFFDC2626)
                                             )

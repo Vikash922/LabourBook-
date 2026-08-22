@@ -27,6 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -77,6 +81,14 @@ fun AdvanceAmountBottomSheet(
 
     val isAmountValid = (amountStr.toDoubleOrNull() ?: 0.0) > 0.0
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val amountFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        try {
+            amountFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -92,27 +104,18 @@ fun AdvanceAmountBottomSheet(
                 .pointerInput(Unit) {}
                 .padding(start = 22.dp, end = 22.dp, top = 20.dp, bottom = 28.dp)
         ) {
-            // Header Row: [ Advance amount / to WorkerName ] (left)  &  [ Aug 01, 2026 + Close Icon ] (right)
+            // Header Row: [ Advance amount ] (left)  &  [ Aug 01, 2026 + Close Icon ] (right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "Advance amount",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "to $workerName",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF111827)
-                    )
-                }
+                Text(
+                    text = "Advance amount",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF111827)
+                )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -186,6 +189,7 @@ fun AdvanceAmountBottomSheet(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF111827)
                             ),
+                            modifier = Modifier.focusRequester(amountFocusRequester),
                             decorationBox = { innerTextField ->
                                 if (amountStr.isEmpty()) {
                                     Text(

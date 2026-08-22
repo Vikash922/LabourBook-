@@ -118,17 +118,17 @@ object FirebaseAuthHelper {
         context: Context,
         serverClientId: String = DEFAULT_SERVER_CLIENT_ID
     ): Result<AuthUser> {
-        val credentialManager = CredentialManager.create(context)
+        val targetContext = findActivity(context) ?: context
+        val credentialManager = CredentialManager.create(targetContext)
 
         return try {
-            Log.i(TAG, "Requesting Google Credential Manager sign-in...")
+            Log.i(TAG, "Requesting Google Credential Manager sign-in with serverClientId: $serverClientId")
             
             // Build Google ID Option for Credential Manager
             val googleIdOption = try {
                 GetSignInWithGoogleOption.Builder(serverClientId)
                     .build()
-            } catch (e: Exception) {
-                // Fallback to GetGoogleIdOption
+            } catch (e: Throwable) {
                 GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(serverClientId)
@@ -142,7 +142,7 @@ object FirebaseAuthHelper {
 
             val result = credentialManager.getCredential(
                 request = request,
-                context = context
+                context = targetContext
             )
 
             val credential = result.credential
@@ -156,7 +156,7 @@ object FirebaseAuthHelper {
                 Log.i(TAG, "Successfully received Google ID Token for: $email")
 
                 // Authenticate with Firebase if Firebase is available
-                if (isFirebaseInitialized(context)) {
+                if (isFirebaseInitialized(targetContext)) {
                     try {
                         val authCredential = GoogleAuthProvider.getCredential(idToken, null)
                         val authResult = FirebaseAuth.getInstance().signInWithCredential(authCredential).await()
@@ -177,7 +177,6 @@ object FirebaseAuthHelper {
                         Result.success(AuthUser(uid = email, displayName = displayName, email = email, photoUrl = photoUrl))
                     }
                 } else {
-                    // Google credential is valid, proceed with authenticated Google user
                     Result.success(AuthUser(uid = email, displayName = displayName, email = email, photoUrl = photoUrl))
                 }
             } else {
@@ -194,6 +193,15 @@ object FirebaseAuthHelper {
             Log.e(TAG, "Sign in failed: ${e.message}", e)
             Result.failure(e)
         }
+    }
+
+    private fun findActivity(context: Context): Activity? {
+        var currentContext = context
+        while (currentContext is android.content.ContextWrapper) {
+            if (currentContext is Activity) return currentContext
+            currentContext = currentContext.baseContext
+        }
+        return null
     }
 
 

@@ -63,7 +63,7 @@ data class LaborWorker(
     val id: String = "",
     val name: String = "",
     val phoneNumber: String = "",
-    val dailyWage: Double = 800.0,
+    val dailyWage: Double = 0.0,
     val avatarColorHex: String = "#1656D6",
     val attendance: Map<String, DailyAttendance> = emptyMap(), // keyed by date "yyyy-MM-dd" e.g. "2026-08-15"
     val createdAt: Long = System.currentTimeMillis()

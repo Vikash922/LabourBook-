@@ -450,50 +450,51 @@ fun CashBookScreen(
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                // Table Header Row with Vertical Dividers
+                                // Table Header Row with Vertical Dividers (Excel grid look)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(Color(0xFFF9FAFB))
+                                        .background(Color(0xFFFAFAFA))
                                         .height(IntrinsicSize.Min),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = AppStrings.get("date", lang),
-                                        fontSize = 12.5.sp,
+                                        fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF111827),
                                         modifier = Modifier
-                                            .weight(0.22f)
-                                            .padding(vertical = 8.dp),
+                                            .weight(0.20f)
+                                            .padding(vertical = 10.dp),
                                         textAlign = TextAlign.Center
                                     )
-                                    VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                    VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
                                         text = AppStrings.get("notes", lang),
-                                        fontSize = 12.5.sp,
+                                        fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF111827),
                                         modifier = Modifier
-                                            .weight(0.48f)
-                                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                                            .weight(0.44f)
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        textAlign = TextAlign.Start
                                     )
-                                    VerticalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
+                                    VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
                                     Text(
                                         text = "₹ " + AppStrings.get("amount", lang),
-                                        fontSize = 12.5.sp,
+                                        fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF111827),
                                         modifier = Modifier
-                                            .weight(0.30f)
-                                            .padding(horizontal = 8.dp, vertical = 8.dp),
-                                        textAlign = TextAlign.End
+                                            .weight(0.36f)
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        textAlign = TextAlign.Start
                                     )
                                 }
 
-                                HorizontalDivider(color = Color(0xFFD1D5DB), thickness = 1.dp)
+                                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
 
-                                // Table Items with Vertical Grid Dividers
+                                // Table Items with Vertical Grid Dividers (Excel look)
                                 displayTransactions.forEachIndexed { index, tx ->
                                     Row(
                                         modifier = Modifier
@@ -508,20 +509,21 @@ fun CashBookScreen(
                                         // Date Column (Stacked Day Number & Day Name, Centered)
                                         Column(
                                             modifier = Modifier
-                                                .weight(0.22f)
-                                                .padding(vertical = 6.dp),
+                                                .weight(0.20f)
+                                                .padding(vertical = 8.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
                                                 text = dayNum,
-                                                fontSize = 13.sp,
+                                                fontSize = 14.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFF111827)
                                             )
                                             Text(
                                                 text = dayName,
-                                                fontSize = 10.sp,
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Normal,
                                                 color = Color(0xFF6B7280)
                                             )
                                         }
@@ -531,34 +533,34 @@ fun CashBookScreen(
                                         // Notes & Payment Method Column
                                         Column(
                                             modifier = Modifier
-                                                .weight(0.48f)
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                .weight(0.44f)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
                                                 text = tx.notes.ifBlank { "-" },
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Normal,
                                                 color = Color(0xFF111827),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = tx.paymentMethod.name.uppercase(),
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Normal,
                                                 color = Color(0xFF6B7280)
                                             )
                                         }
 
                                         VerticalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp, modifier = Modifier.fillMaxHeight())
 
-                                        // Amount Column with Chevron Arrow
+                                        // Amount Column: Left aligned Amount with right aligned chevron
                                         Row(
                                             modifier = Modifier
-                                                .weight(0.30f)
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.End,
+                                                .weight(0.36f)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             val formattedAmount = if (tx.amount % 1.0 == 0.0) {
@@ -568,15 +570,14 @@ fun CashBookScreen(
                                             }
                                             Text(
                                                 text = "₹$formattedAmount",
-                                                fontSize = 13.sp,
+                                                fontSize = 14.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (tx.type == TransactionType.CASH_IN) Color(0xFF16A34A) else Color(0xFFDC2626)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
                                             Icon(
                                                 imageVector = Icons.Default.KeyboardArrowRight,
                                                 contentDescription = null,
-                                                tint = Color(0xFF9CA3AF),
+                                                tint = Color(0xFFD1D5DB),
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }

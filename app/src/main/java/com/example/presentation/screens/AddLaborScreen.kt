@@ -102,7 +102,8 @@ fun AddLaborScreen(
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val lang = userProfile.language
 
-    val isFormValid = laborName.isNotBlank() && laborPhone.isNotBlank()
+    val wageValue = laborWage.toDoubleOrNull() ?: 0.0
+    val isFormValid = laborName.isNotBlank() && laborPhone.isNotBlank() && wageValue > 0.0
 
     var hasContactPermission by remember {
         mutableStateOf(
@@ -114,7 +115,7 @@ fun AddLaborScreen(
     }
 
     var selectedContactForAdd by remember { mutableStateOf<SavedContact?>(null) }
-    var contactDailyWage by remember { mutableStateOf("800") }
+    var contactDailyWage by remember { mutableStateOf("") }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -125,6 +126,13 @@ fun AddLaborScreen(
             viewModel.showMessage("Contacts loaded successfully")
         } else {
             viewModel.showMessage("Contact permission not granted. You can still add labors manually.")
+        }
+    }
+
+    // Automatically ask contact access on entering Add Labor screen if not granted
+    LaunchedEffect(Unit) {
+        if (!hasContactPermission) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
     }
 
@@ -729,14 +737,20 @@ fun AddLaborScreen(
                 }
             },
             confirmButton = {
+                val wage = contactDailyWage.toDoubleOrNull() ?: 0.0
                 Button(
                     onClick = {
-                        val wage = contactDailyWage.toDoubleOrNull() ?: 800.0
-                        viewModel.addLaborFromContact(contact.copy(), wage)
-                        viewModel.showMessage("Added ${contact.name} to labors list!")
-                        selectedContactForAdd = null
+                        if (wage > 0.0) {
+                            viewModel.addLaborFromContact(contact.copy(), wage)
+                            viewModel.showMessage("Added ${contact.name} to labors list!")
+                            selectedContactForAdd = null
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = LaborBlue)
+                    enabled = wage > 0.0,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LaborBlue,
+                        disabledContainerColor = Color(0xFFD1D5DB)
+                    )
                 ) {
                     Text("Confirm & Add Labor", color = Color.White)
                 }
