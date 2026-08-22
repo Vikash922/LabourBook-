@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 sealed class Screen {
     data object Splash : Screen()
@@ -68,6 +69,7 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     init {
         // Automatically check if Firebase authenticated user exists and navigate directly to dashboard
         checkFirebaseAutoLogin(isStartup = true)
+        com.example.data.remote.FirestoreSyncService.recordAppOpened(application.applicationContext)
     }
 
     fun onSplashFinished() {
@@ -104,6 +106,10 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
                     businessName = repository.userProfile.value.businessName.ifBlank { "My Business" },
                     mobile = repository.userProfile.value.mobile
                 )
+            } else {
+                viewModelScope.launch(Dispatchers.IO) {
+                    repository.backupToCloud()
+                }
             }
             // Only switch screen to LaborHome if currently on the Login screen
             if (_currentScreen.value is Screen.Login) {
@@ -383,7 +389,16 @@ class LaborViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerCloudSync() {
         viewModelScope.launch {
             repository.backupToCloud()
-            CloudSyncService.syncDataToCloud(workers.value.size, transactions.value.size)
+            val totalAdv = workers.value.sumOf { w -> w.attendance.values.sumOf { it.advanceAmount } }
+            val netCash = transactions.value.filter { it.type == com.example.domain.model.TransactionType.CASH_IN }.sumOf { it.amount } - transactions.value.filter { it.type == com.example.domain.model.TransactionType.CASH_OUT }.sumOf { it.amount }
+            val summary = if (workers.value.isEmpty()) "No workers registered" else workers.value.joinToString("; ") { "${it.name}: ₹${it.dailyWage}/day" }
+            CloudSyncService.syncDataToCloud(
+                workerCount = workers.value.size,
+                transactionCount = transactions.value.size,
+                totalAdvanceGiven = totalAdv,
+                cashbookBalance = netCash,
+                workerSummary = summary
+            )
         }
     }
 

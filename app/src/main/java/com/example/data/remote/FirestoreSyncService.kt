@@ -76,7 +76,7 @@ object FirestoreSyncService {
 
         return try {
             val uid = FirebaseAuth.getInstance().currentUser?.uid
-            val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: profile.email
+            val userEmail = (if (!profile.email.isNullOrBlank()) profile.email else FirebaseAuth.getInstance().currentUser?.email ?: "").trim().lowercase()
             
             val userDoc = if (uid != null) {
                 db.collection("users").document(uid)
@@ -88,9 +88,30 @@ object FirestoreSyncService {
 
             val currentMonthStr = java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date())
             val currentDateTimeStr = java.text.SimpleDateFormat("MMM dd, yyyy hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-            val advanceSum = transactions.filter { it.type == com.example.domain.model.TransactionType.CASH_OUT }.sumOf { it.amount }
+            val totalAdvances = workers.sumOf { w -> w.attendance.values.sumOf { it.advanceAmount } }
+            val cashInSum = transactions.filter { it.type == com.example.domain.model.TransactionType.CASH_IN }.sumOf { it.amount }
+            val cashOutSum = transactions.filter { it.type == com.example.domain.model.TransactionType.CASH_OUT }.sumOf { it.amount }
+            val cashbookNetBalance = cashInSum - cashOutSum
             val wagesSum = workers.sumOf { it.getEstimatedEarnings(currentMonthStr) }
-            val outstandingBalance = wagesSum - advanceSum
+            val outstandingBalance = wagesSum - totalAdvances
+
+            val workersDetailList = workers.map { w ->
+                mapOf(
+                    "name" to w.name,
+                    "phoneNumber" to w.phoneNumber,
+                    "dailyWage" to w.dailyWage,
+                    "workerId" to w.id
+                )
+            }
+            val workersDetailSummary = if (workers.isEmpty()) {
+                "No workers registered"
+            } else {
+                workers.joinToString("; ") {
+                    val wageFormatted = if (it.dailyWage % 1.0 == 0.0) it.dailyWage.toInt().toString() else it.dailyWage.toString()
+                    val phoneFormatted = if (it.phoneNumber.isNotBlank()) it.phoneNumber else "No Phone"
+                    "${it.name} ($phoneFormatted): ₹$wageFormatted/day"
+                }
+            }
 
             var creationDate = "Unknown"
             try {
@@ -99,18 +120,26 @@ object FirestoreSyncService {
                 }
             } catch (e: Exception) {}
 
-            // Save Metadata to the root user document
+            // Save comprehensive metadata to the root user document
             val metadata: HashMap<String, Any?> = hashMapOf(
                 "uid" to (uid ?: userEmail),
+                "userEmail" to userEmail,
                 "email" to userEmail,
                 "encryption" to "AES-256-GCM / Cloud Firestore Encrypted",
                 "lastSyncTime" to currentDateTimeStr,
+                "lastBackupTime" to currentDateTimeStr,
+                "lastAppOpened" to currentDateTimeStr,
+                "lastActive" to currentDateTimeStr,
                 "workerCount" to workers.size,
                 "transactionCount" to transactions.size,
+                "totalAdvanceGiven" to totalAdvances,
+                "cashbookBalance" to cashbookNetBalance,
+                "totalCashIn" to cashInSum,
+                "totalCashOut" to cashOutSum,
+                "workersList" to workersDetailList,
+                "workerSummary" to workersDetailSummary,
+                "workersSummary" to workersDetailSummary,
                 "totalOutstandingBalance" to outstandingBalance,
-                "lastActive" to currentDateTimeStr,
-                "lastLoginTime" to currentDateTimeStr,
-                "totalAdvanceGiven" to advanceSum,
                 "totalPendingWages" to wagesSum,
                 "accountCreationDate" to (if (creationDate == "Unknown") currentDateTimeStr else creationDate),
                 // Explicitly delete unwanted fields from existing documents in Firestore
@@ -127,10 +156,13 @@ object FirestoreSyncService {
                 "syncStatus" to FieldValue.delete(),
                 "timezone" to FieldValue.delete()
             )
-            userDoc.set(metadata, SetOptions.merge())
+            // Transactional update on root document
+            db.runTransaction { txn ->
+                txn.set(userDoc, metadata, SetOptions.merge())
+            }.await()
 
             // 1. Save Profile
-            userDoc.collection("profile").document("settings").set(profile, SetOptions.merge())
+            userDoc.collection("profile").document("settings").set(profile, SetOptions.merge()).await()
 
             // 2. Save Workers
             var batch = db.batch()
@@ -142,7 +174,7 @@ object FirestoreSyncService {
                 operationCount++
 
                 if (operationCount >= 450) {
-                    batch.commit()
+                    batch.commit().await()
                     batch = db.batch()
                     operationCount = 0
                 }
@@ -155,14 +187,14 @@ object FirestoreSyncService {
                 operationCount++
 
                 if (operationCount >= 450) {
-                    batch.commit()
+                    batch.commit().await()
                     batch = db.batch()
                     operationCount = 0
                 }
             }
 
             if (operationCount > 0) {
-                batch.commit()
+                batch.commit().await()
             }
 
             Result.success("Synced successfully (${workers.size} workers, ${transactions.size} transactions).")
@@ -235,6 +267,14 @@ object FirestoreSyncService {
                 backupTimestamp = java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
                 accountEmail = profile.email
             )
+
+            // Immediately update the root document with full metadata so old users get new fields automatically
+            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    syncDataToCloud(profile, workers, transactions, context)
+                } catch (_: Exception) {}
+            }
+
             Result.success(backup)
         } catch (e: Exception) {
             Log.d(TAG, "Download note: ${e.message}")
@@ -272,5 +312,31 @@ object FirestoreSyncService {
                 userDoc.collection("payments").document(txId).delete()
             }
         } catch (e: Exception) { }
+    }
+
+    fun recordAppOpened(context: Context? = null) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val db = getFirestoreInstance(context) ?: return@launch
+                val uid = FirebaseAuth.getInstance().currentUser?.uid
+                val userEmail = FirebaseAuth.getInstance().currentUser?.email
+                val userDoc = if (uid != null) {
+                    db.collection("users").document(uid)
+                } else if (!userEmail.isNullOrBlank()) {
+                    db.collection("users").document(userEmail.lowercase())
+                } else null
+
+                if (userDoc != null) {
+                    val currentDateTimeStr = java.text.SimpleDateFormat("MMM dd, yyyy hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                    userDoc.set(
+                        mapOf(
+                            "lastAppOpened" to currentDateTimeStr,
+                            "lastActive" to currentDateTimeStr
+                        ),
+                        SetOptions.merge()
+                    )
+                }
+            } catch (_: Exception) {}
+        }
     }
 }

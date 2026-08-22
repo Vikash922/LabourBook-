@@ -3,11 +3,11 @@ package com.example.core.util
 object AppStrings {
     fun get(key: String, language: String = "English"): String {
         val langCode = when {
-            language.contains("Hindi", ignoreCase = true) || language.contains("हिंदी") -> "hi"
-            language.contains("Marathi", ignoreCase = true) || language.contains("मराठी") -> "mr"
-            language.contains("Gujarati", ignoreCase = true) || language.contains("ગુજરાતી") -> "gu"
-            language.contains("Bengali", ignoreCase = true) || language.contains("বাংলা") -> "bn"
-            language.contains("Tamil", ignoreCase = true) || language.contains("தமிழ்") -> "ta"
+            language.equals("hi", ignoreCase = true) || language.contains("Hindi", ignoreCase = true) || language.contains("हिंदी") -> "hi"
+            language.equals("mr", ignoreCase = true) || language.contains("Marathi", ignoreCase = true) || language.contains("मराठी") -> "mr"
+            language.equals("gu", ignoreCase = true) || language.contains("Gujarati", ignoreCase = true) || language.contains("ગુજરાતી") -> "gu"
+            language.equals("bn", ignoreCase = true) || language.contains("Bengali", ignoreCase = true) || language.contains("বাংলা") -> "bn"
+            language.equals("ta", ignoreCase = true) || language.contains("Tamil", ignoreCase = true) || language.contains("தமிழ்") -> "ta"
             else -> "en"
         }
 

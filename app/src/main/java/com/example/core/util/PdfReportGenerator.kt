@@ -735,7 +735,7 @@ object PdfReportGenerator {
             }
             totalOtHours += rec.overtimeHours
             totalAdvance += rec.advanceAmount
-            val effectiveOtRate = if (rec.overtimeRate > 0.0) rec.overtimeRate else defaultOtRate
+            val effectiveOtRate = rec.overtimeRate
             totalOtEarnings += (rec.overtimeHours * effectiveOtRate)
         }
 

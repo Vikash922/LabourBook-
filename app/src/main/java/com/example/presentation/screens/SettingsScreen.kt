@@ -224,58 +224,9 @@ fun SettingsScreen(
                 }
             }
 
-            // 2. Language & Business Details
+            // 2. Business Details & Preferences
             item {
-                CompactSettingsGroup(title = "PREFERENCES & BUSINESS") {
-                    // Language Switcher Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF6366F1).copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Language,
-                                    contentDescription = null,
-                                    tint = Color(0xFF6366F1),
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "Language / भाषा",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0F172A)
-                            )
-                        }
-
-                        // Language Pills
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            LanguagePill(
-                                label = "EN",
-                                isSelected = lang != "hi",
-                                onClick = { viewModel.setLanguage("en") }
-                            )
-                            LanguagePill(
-                                label = "हिंदी",
-                                isSelected = lang == "hi",
-                                onClick = { viewModel.setLanguage("hi") }
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
-
+                CompactSettingsGroup(title = "BUSINESS DETAILS") {
                     // Business Name Edit
                     CompactSettingsRow(
                         icon = Icons.Default.Business,

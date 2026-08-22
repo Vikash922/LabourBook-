@@ -128,7 +128,7 @@ data class LaborWorker(
             ot += rec.overtimeHours
             adv += rec.advanceAmount
 
-            val effectiveRate = if (rec.overtimeRate > 0.0) rec.overtimeRate else defaultOtRatePerHour
+            val effectiveRate = rec.overtimeRate
             totalOtAmount += (rec.overtimeHours * effectiveRate)
         }
 

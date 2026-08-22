@@ -118,7 +118,7 @@ fun LaborReportScreen(
         }
         totalOvertimeHours += rec.overtimeHours
         totalAdvanceAmount += rec.advanceAmount
-        val effectiveOtRate = if (rec.overtimeRate > 0.0) rec.overtimeRate else defaultOtRatePerHour
+        val effectiveOtRate = rec.overtimeRate
         totalOtEarnings += (rec.overtimeHours * effectiveOtRate)
     }
 

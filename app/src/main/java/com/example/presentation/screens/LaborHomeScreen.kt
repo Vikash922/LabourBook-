@@ -304,7 +304,7 @@ fun EmptyLaborStateCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (lang.contains("Hindi") || lang.contains("हिंदी")) "कोई मजदूर नहीं जोड़ा गया" else "No Laborers Added Yet",
+                text = if (lang == "hi" || lang.contains("Hindi", ignoreCase = true) || lang.contains("हिंदी")) "कोई मजदूर नहीं जोड़ा गया" else "No Laborers Added Yet",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F2937),
@@ -314,7 +314,7 @@ fun EmptyLaborStateCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = if (lang.contains("Hindi") || lang.contains("हिंदी")) 
+                text = if (lang == "hi" || lang.contains("Hindi", ignoreCase = true) || lang.contains("हिंदी")) 
                     "मजदूरों को जोड़ने के लिए नीचे दिए गए बटन पर टैप करें। आप फोन संपर्कों से या सीधे नाम भरकर जोड़ सकते हैं।"
                     else "Add your laborers to start recording daily attendance, wage slips, advances, and payroll.",
                 fontSize = 13.sp,

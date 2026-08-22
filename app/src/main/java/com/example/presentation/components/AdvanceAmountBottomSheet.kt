@@ -343,7 +343,11 @@ fun AdvanceAmountBottomSheet(
                         Button(
                             onClick = {
                                 val finalAmount = amountStr.toDoubleOrNull() ?: 0.0
-                                onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                                if (finalAmount <= 0.0 && initialAdvance <= 0.0 && noteStr.isBlank()) {
+                                    onDismiss()
+                                } else {
+                                    onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                                }
                             },
                             modifier = Modifier
                                 .weight(0.6f)
@@ -368,7 +372,11 @@ fun AdvanceAmountBottomSheet(
                     Button(
                         onClick = {
                             val finalAmount = amountStr.toDoubleOrNull() ?: 0.0
-                            onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                            if (finalAmount <= 0.0 && initialAdvance <= 0.0 && noteStr.isBlank()) {
+                                onDismiss()
+                            } else {
+                                onConfirm(finalAmount, noteStr, selectedPaymentMethod)
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()

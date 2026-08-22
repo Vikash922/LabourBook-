@@ -852,21 +852,28 @@ fun LaborDetailScreen(
                 advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
             },
             onConfirm = { adv, note, paymentMethod ->
-                viewModel.updateDayDetails(
-                    workerId = worker.id,
-                    dayNumber = day,
-                    advance = adv,
-                    note = note,
-                    otHours = dayRecord?.overtimeHours ?: 0.0,
-                    otRate = dayRecord?.overtimeRate ?: 0.0,
-                    monthStr = selectedMonth,
-                    paymentMethod = paymentMethod
-                )
-                selectedDayForAdvanceEditDialog = null
-                if (adv > 0.0) {
-                    advanceConfirmationState = AdvanceConfirmationType.Added(amount = adv, workerName = worker.name)
+                val prevAdvance = dayRecord?.advanceAmount ?: 0.0
+                val prevNote = dayRecord?.note ?: ""
+
+                if (adv <= 0.0 && prevAdvance <= 0.0 && note.isBlank() && prevNote.isBlank()) {
+                    selectedDayForAdvanceEditDialog = null
                 } else {
-                    advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
+                    viewModel.updateDayDetails(
+                        workerId = worker.id,
+                        dayNumber = day,
+                        advance = adv,
+                        note = note,
+                        otHours = dayRecord?.overtimeHours ?: 0.0,
+                        otRate = dayRecord?.overtimeRate ?: 0.0,
+                        monthStr = selectedMonth,
+                        paymentMethod = paymentMethod
+                    )
+                    selectedDayForAdvanceEditDialog = null
+                    if (adv > 0.0) {
+                        advanceConfirmationState = AdvanceConfirmationType.Added(amount = adv, workerName = worker.name)
+                    } else if (prevAdvance > 0.0) {
+                        advanceConfirmationState = AdvanceConfirmationType.Removed(workerName = worker.name)
+                    }
                 }
             }
         )
@@ -899,9 +906,13 @@ fun LaborDetailScreen(
         var otMinutes by remember(day, initialTotalOt) { mutableIntStateOf(((initialTotalOt - initialTotalOt.toInt()) * 60).roundToInt()) }
         
         val initialRate = dayRecord?.overtimeRate ?: 0.0
-        var hourlyRateStr by remember(day, initialRate) { mutableStateOf(if (initialRate > 0) {
-            if (initialRate % 1.0 == 0.0) String.format(Locale.ENGLISH, "%.0f", initialRate) else initialRate.toString()
-        } else "") }
+        var hourlyRateStr by remember(day, initialRate) {
+            mutableStateOf(
+                if (initialRate > 0.0) {
+                    if (initialRate % 1.0 == 0.0) String.format(Locale.ENGLISH, "%.0f", initialRate) else initialRate.toString()
+                } else ""
+            )
+        }
         var showHoursPickerDialog by remember { mutableStateOf(false) }
 
         val currentTotalHours = otHours + (otMinutes / 60.0)

@@ -116,8 +116,7 @@ class LaborRepository(private val context: Context? = null) {
     }
 
     /**
-     * Sanitizes worker attendance records to ensure legacy data with missing/zero overtimeRate
-     * gets automatically calculated based on their dailyWage (1.5x hourly rate standard).
+     * Preserves worker attendance records without artificially overwriting custom overtimeRate.
      */
     private fun sanitizeWorkers(workers: List<LaborWorker>): List<LaborWorker> {
         return workers
@@ -158,6 +157,18 @@ class LaborRepository(private val context: Context? = null) {
                     }
                     _lastBackupStatus.value = "Last backup: ${localData.backupTimestamp} • ${localData.totalWorkers} workers restored"
                     dataLoaded = true
+
+                    // Upgrade Firestore metadata automatically for already logged-in users
+                    if (_userProfile.value.isLoggedIn) {
+                        repositoryScope.launch(Dispatchers.IO) {
+                            com.example.data.remote.FirestoreSyncService.syncDataToCloud(
+                                profile = _userProfile.value,
+                                workers = _workers.value,
+                                transactions = _transactions.value,
+                                context = context
+                            )
+                        }
+                    }
                 }
             }
 
@@ -184,6 +195,16 @@ class LaborRepository(private val context: Context? = null) {
                     }
                     _lastBackupStatus.value = "Last backup: ${backupData.backupTimestamp} • Restored ${backupData.totalWorkers} workers"
                     persistLocalData(syncToCloud = false)
+
+                    // Immediately re-sync back to cloud to ensure all metadata fields are populated/upgraded
+                    repositoryScope.launch(Dispatchers.IO) {
+                        com.example.data.remote.FirestoreSyncService.syncDataToCloud(
+                            profile = _userProfile.value,
+                            workers = _workers.value,
+                            transactions = _transactions.value,
+                            context = context
+                        )
+                    }
                 }.onFailure {
                     if (_workers.value.isEmpty()) {
                         _lastBackupStatus.value = "No cloud backup found"
@@ -362,6 +383,17 @@ class LaborRepository(private val context: Context? = null) {
                         persistLocalData(syncToCloud = false)
                         hasRestored = true
                         _lastBackupStatus.value = "Cloud Backup restored: ${backupData.backupTimestamp} • ${backupData.totalWorkers} workers"
+
+                        // Automatically upgrade root metadata fields in Firestore for old user login
+                        repositoryScope.launch(Dispatchers.IO) {
+                            com.example.data.remote.FirestoreSyncService.syncDataToCloud(
+                                profile = _userProfile.value,
+                                workers = _workers.value,
+                                transactions = _transactions.value,
+                                context = context
+                            )
+                        }
+
                         withContext(Dispatchers.Main) {
                             try {
                                 onComplete?.invoke(true, "Cloud backup automatically restored: ${backupData.totalWorkers} workers, ${backupData.totalTransactions} cash entries.")
@@ -712,17 +744,21 @@ class LaborRepository(private val context: Context? = null) {
                     0.0
                 }
 
-                currentMap[dateKey] = DailyAttendance(
-                    dayNumber = dayNumber,
-                    dayOfWeek = dow,
-                    fullDate = dateKey,
-                    status = finalStatus,
-                    overtimeHours = otHours,
-                    overtimeRate = finalRate,
-                    advanceAmount = advance,
-                    note = note,
-                    paymentMethod = paymentMethod
-                )
+                if (finalStatus == AttendanceStatus.UNMARKED && advance <= 0.0 && otHours <= 0.0 && note.isBlank()) {
+                    currentMap.remove(dateKey)
+                } else {
+                    currentMap[dateKey] = DailyAttendance(
+                        dayNumber = dayNumber,
+                        dayOfWeek = dow,
+                        fullDate = dateKey,
+                        status = finalStatus,
+                        overtimeHours = otHours,
+                        overtimeRate = finalRate,
+                        advanceAmount = if (advance > 0.0) advance else 0.0,
+                        note = note,
+                        paymentMethod = paymentMethod
+                    )
+                }
                 worker.copy(attendance = currentMap)
             } else {
                 worker
